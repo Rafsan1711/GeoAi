@@ -280,6 +280,48 @@ class Game {
         if (confidenceBar) {
             confidenceBar.style.width = confidence + '%';
         }
+
+        // Update AI reaction emoji based on confidence and progress
+        this.updateReactionEmoji(confidence, this.state.questionNumber);
+    }
+
+    /**
+     * Update AI reaction emoji based on game state
+     */
+    updateReactionEmoji(confidence, questionNumber) {
+        const reactionEmoji = document.getElementById('reactionEmoji');
+        const reactionText = document.getElementById('reactionText');
+        
+        if (!reactionEmoji || !reactionText) return;
+
+        let emoji = '🤔';
+        let text = 'Thinking...';
+
+        if (confidence < 20) {
+            emoji = '😕';
+            text = 'Confused...';
+        } else if (confidence >= 20 && confidence < 40) {
+            emoji = '🤔';
+            text = 'Thinking...';
+        } else if (confidence >= 40 && confidence < 60) {
+            emoji = '🧐';
+            text = 'Analyzing...';
+        } else if (confidence >= 60 && confidence < 80) {
+            emoji = '😊';
+            text = 'Getting closer!';
+        } else if (confidence >= 80) {
+            emoji = '😃';
+            text = 'Almost there!';
+        }
+
+        // Add animation
+        reactionEmoji.style.animation = 'none';
+        setTimeout(() => {
+            reactionEmoji.textContent = emoji;
+            reactionEmoji.style.animation = 'reactionPulse 1.5s ease-in-out infinite';
+        }, 10);
+        
+        reactionText.textContent = text;
     }
 
     /**
