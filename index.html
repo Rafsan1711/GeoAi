@@ -4,273 +4,481 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoAI - Mind Reading Geography Game</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/screens.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    
+    <!-- Preload fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Particles Background -->
-    <div class="particles" id="particles"></div>
+    <!-- Background Effects -->
+    <div class="bg-effects">
+        <div class="particles" id="particles"></div>
+        <div class="gradient-orb gradient-orb-1"></div>
+        <div class="gradient-orb gradient-orb-2"></div>
+        <div class="gradient-orb gradient-orb-3"></div>
+    </div>
 
     <!-- Main Container -->
     <div class="container">
         <!-- Welcome Screen -->
         <div class="screen active" id="welcomeScreen">
-            <div class="glow-orb"></div>
-            <div class="logo-container">
-                <div class="logo-circle">
-                    <span class="logo-icon">🌍</span>
-                    <div class="logo-ring"></div>
-                    <div class="logo-ring-2"></div>
+            <div class="welcome-content">
+                <div class="logo-section">
+                    <div class="logo-animation">
+                        <div class="logo-circle">
+                            <div class="logo-icon">🌍</div>
+                            <div class="logo-ring ring-1"></div>
+                            <div class="logo-ring ring-2"></div>
+                            <div class="logo-ring ring-3"></div>
+                        </div>
+                    </div>
+                    
+                    <h1 class="brand-title">
+                        <span class="brand-geo" data-text="Geo">Geo</span>
+                        <span class="brand-ai" data-text="AI">AI</span>
+                    </h1>
+                    
+                    <p class="brand-tagline">Think of a place, I'll read your mind</p>
+                    
+                    <div class="brand-stats">
+                        <div class="stat-badge">
+                            <span class="stat-icon">🎯</span>
+                            <span class="stat-text">95% Accuracy</span>
+                        </div>
+                        <div class="stat-badge">
+                            <span class="stat-icon">⚡</span>
+                            <span class="stat-text">AI Powered</span>
+                        </div>
+                        <div class="stat-badge">
+                            <span class="stat-icon">🌐</span>
+                            <span class="stat-text">1000+ Places</span>
+                        </div>
+                    </div>
                 </div>
-                <h1 class="main-title">
-                    <span class="title-geo">Geo</span><span class="title-ai">AI</span>
-                </h1>
-                <p class="subtitle">Think of a place, and I'll read your mind</p>
-            </div>
-            
-            <div class="features-grid">
-                <div class="feature-card">
-                    <span class="feature-icon">🧠</span>
-                    <h3>AI Powered</h3>
-                    <p>Advanced algorithm</p>
-                </div>
-                <div class="feature-card">
-                    <span class="feature-icon">🎯</span>
-                    <h3>High Accuracy</h3>
-                    <p>Pinpoint precision</p>
-                </div>
-                <div class="feature-card">
-                    <span class="feature-icon">⚡</span>
-                    <h3>Lightning Fast</h3>
-                    <p>Instant results</p>
-                </div>
-            </div>
 
-            <button class="btn-primary" onclick="game.showCategoryScreen()">
-                <span>Start Experience</span>
-                <span class="btn-arrow">→</span>
-            </button>
+                <div class="feature-showcase">
+                    <div class="feature-card" data-delay="0">
+                        <div class="feature-icon-wrapper">
+                            <div class="feature-icon">🧠</div>
+                        </div>
+                        <h3 class="feature-title">Advanced AI</h3>
+                        <p class="feature-desc">Powered by information gain and Bayesian inference algorithms</p>
+                    </div>
+
+                    <div class="feature-card" data-delay="100">
+                        <div class="feature-icon-wrapper">
+                            <div class="feature-icon">🎲</div>
+                        </div>
+                        <h3 class="feature-title">Smart Questions</h3>
+                        <p class="feature-desc">Adaptive questioning system that learns from your answers</p>
+                    </div>
+
+                    <div class="feature-card" data-delay="200">
+                        <div class="feature-icon-wrapper">
+                            <div class="feature-icon">🌟</div>
+                        </div>
+                        <h3 class="feature-title">High Precision</h3>
+                        <p class="feature-desc">Identifies your place in just 10-15 strategic questions</p>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-hero" onclick="game.showCategoryScreen()">
+                    <span class="btn-content">
+                        <span class="btn-text">Start Your Journey</span>
+                        <span class="btn-icon">→</span>
+                    </span>
+                    <span class="btn-shimmer"></span>
+                </button>
+            </div>
         </div>
 
         <!-- Category Selection Screen -->
         <div class="screen" id="categoryScreen">
             <div class="screen-header">
-                <h2 class="screen-title">Choose Your Category</h2>
-                <p class="screen-description">Select what type of place you're thinking of</p>
+                <h2 class="screen-title animate-text">Choose Your Quest</h2>
+                <p class="screen-subtitle">Select the type of place you're thinking about</p>
             </div>
 
             <div class="category-grid">
-                <div class="category-card" onclick="game.startGame('country')">
-                    <div class="category-icon-wrapper">
-                        <span class="category-icon">🌏</span>
+                <div class="category-card" onclick="game.startGame('country')" data-category="country">
+                    <div class="category-bg-pattern"></div>
+                    <div class="category-content">
+                        <div class="category-icon-box">
+                            <span class="category-emoji">🌏</span>
+                        </div>
+                        <h3 class="category-name">Countries</h3>
+                        <p class="category-description">Nations and territories around the globe</p>
+                        <div class="category-count">195+ Items</div>
                     </div>
-                    <h3 class="category-title">Countries</h3>
-                    <p class="category-desc">Nations around the world</p>
-                    <div class="category-overlay">
-                        <span class="overlay-text">Select</span>
-                    </div>
+                    <div class="category-hover-effect"></div>
+                    <div class="category-shine"></div>
                 </div>
 
-                <div class="category-card" onclick="game.startGame('city')">
-                    <div class="category-icon-wrapper">
-                        <span class="category-icon">🏙️</span>
+                <div class="category-card" onclick="game.startGame('city')" data-category="city">
+                    <div class="category-bg-pattern"></div>
+                    <div class="category-content">
+                        <div class="category-icon-box">
+                            <span class="category-emoji">🏙️</span>
+                        </div>
+                        <h3 class="category-name">Cities</h3>
+                        <p class="category-description">Metropolitan areas and urban centers</p>
+                        <div class="category-count">500+ Items</div>
                     </div>
-                    <h3 class="category-title">Cities</h3>
-                    <p class="category-desc">Urban metropolises</p>
-                    <div class="category-overlay">
-                        <span class="overlay-text">Select</span>
-                    </div>
+                    <div class="category-hover-effect"></div>
+                    <div class="category-shine"></div>
                 </div>
 
-                <div class="category-card" onclick="game.startGame('place')">
-                    <div class="category-icon-wrapper">
-                        <span class="category-icon">🏛️</span>
+                <div class="category-card" onclick="game.startGame('place')" data-category="place">
+                    <div class="category-bg-pattern"></div>
+                    <div class="category-content">
+                        <div class="category-icon-box">
+                            <span class="category-emoji">🏛️</span>
+                        </div>
+                        <h3 class="category-name">Historic Places</h3>
+                        <p class="category-description">Landmarks, monuments, and wonders</p>
+                        <div class="category-count">300+ Items</div>
                     </div>
-                    <h3 class="category-title">Landmarks</h3>
-                    <p class="category-desc">Historic & natural wonders</p>
-                    <div class="category-overlay">
-                        <span class="overlay-text">Select</span>
-                    </div>
+                    <div class="category-hover-effect"></div>
+                    <div class="category-shine"></div>
                 </div>
             </div>
 
-            <button class="btn-secondary" onclick="game.showWelcomeScreen()">
-                <span>← Back</span>
+            <button class="btn btn-secondary" onclick="game.showWelcomeScreen()">
+                <span class="btn-icon">←</span>
+                <span class="btn-text">Back to Home</span>
             </button>
         </div>
 
         <!-- Thinking Screen -->
         <div class="screen" id="thinkingScreen">
-            <div class="thinking-animation">
-                <div class="thinking-orb">
-                    <div class="orb-core"></div>
-                    <div class="orb-pulse"></div>
-                    <div class="orb-pulse-2"></div>
+            <div class="thinking-wrapper">
+                <div class="mind-reader-animation">
+                    <div class="brain-wave wave-1"></div>
+                    <div class="brain-wave wave-2"></div>
+                    <div class="brain-wave wave-3"></div>
+                    <div class="brain-core">
+                        <div class="brain-icon">🧠</div>
+                    </div>
                 </div>
-            </div>
-            <h2 class="thinking-title">Think of a <span id="thinkingCategory">place</span>...</h2>
-            <p class="thinking-subtitle">Focus your mind on it</p>
-            <div class="thinking-progress">
-                <div class="thinking-bar"></div>
+
+                <h2 class="thinking-title">
+                    <span class="thinking-text">Think of a </span>
+                    <span class="thinking-category" id="thinkingCategory">place</span>
+                </h2>
+                
+                <p class="thinking-subtitle">Focus your thoughts... I'm tuning in</p>
+
+                <div class="thinking-progress-bar">
+                    <div class="thinking-progress-fill"></div>
+                    <div class="thinking-progress-glow"></div>
+                </div>
+
+                <div class="thinking-tips">
+                    <div class="tip-item">💭 Think clearly</div>
+                    <div class="tip-item">🎯 Be specific</div>
+                    <div class="tip-item">🔮 Stay focused</div>
+                </div>
             </div>
         </div>
 
         <!-- Question Screen -->
         <div class="screen" id="questionScreen">
-            <div class="question-header">
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
+            <div class="question-wrapper">
+                <div class="question-header">
+                    <div class="progress-section">
+                        <div class="progress-info">
+                            <span class="progress-label">Progress</span>
+                            <span class="progress-counter" id="progressText">Question 1 / 15</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-bg"></div>
+                            <div class="progress-bar-fill" id="progressFill"></div>
+                            <div class="progress-bar-glow"></div>
+                        </div>
                     </div>
-                    <span class="progress-text" id="progressText">Question 1 / 15</span>
-                </div>
-                <div class="confidence-display">
-                    <span class="confidence-label">Confidence</span>
-                    <span class="confidence-value" id="confidenceValue">0%</span>
-                </div>
-            </div>
 
-            <div class="question-container">
-                <div class="ai-avatar">
-                    <div class="avatar-glow"></div>
-                    <span class="avatar-icon">🤖</span>
+                    <div class="confidence-section">
+                        <div class="confidence-badge">
+                            <span class="confidence-label">Confidence</span>
+                            <span class="confidence-percent" id="confidenceValue">0%</span>
+                        </div>
+                        <div class="confidence-indicator">
+                            <div class="confidence-bar" id="confidenceBar"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="question-bubble">
-                    <p class="question-text" id="questionText">Loading question...</p>
-                </div>
-            </div>
 
-            <div class="answers-container" id="answersContainer">
-                <button class="answer-btn answer-yes" onclick="game.answerQuestion('yes')">
-                    <span class="answer-icon">✓</span>
-                    <span class="answer-text">Yes</span>
-                </button>
-                <button class="answer-btn answer-probably" onclick="game.answerQuestion('probably')">
-                    <span class="answer-icon">↗</span>
-                    <span class="answer-text">Probably</span>
-                </button>
-                <button class="answer-btn answer-dont-know" onclick="game.answerQuestion('dontknow')">
-                    <span class="answer-icon">?</span>
-                    <span class="answer-text">Don't Know</span>
-                </button>
-                <button class="answer-btn answer-probably-not" onclick="game.answerQuestion('probablynot')">
-                    <span class="answer-icon">↘</span>
-                    <span class="answer-text">Probably Not</span>
-                </button>
-                <button class="answer-btn answer-no" onclick="game.answerQuestion('no')">
-                    <span class="answer-icon">✗</span>
-                    <span class="answer-text">No</span>
-                </button>
+                <div class="question-display">
+                    <div class="ai-avatar-section">
+                        <div class="avatar-container">
+                            <div class="avatar-glow-ring"></div>
+                            <div class="avatar-icon">🤖</div>
+                            <div class="avatar-pulse"></div>
+                        </div>
+                        <div class="ai-status">Analyzing...</div>
+                    </div>
+
+                    <div class="question-bubble">
+                        <div class="bubble-shine"></div>
+                        <p class="question-text" id="questionText">Loading question...</p>
+                        <div class="typing-indicator">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="answers-grid" id="answersContainer">
+                    <button class="answer-btn answer-yes" onclick="game.answerQuestion('yes')" data-hotkey="1">
+                        <div class="answer-icon-circle">
+                            <span class="answer-icon">✓</span>
+                        </div>
+                        <span class="answer-label">Yes</span>
+                        <div class="answer-ripple"></div>
+                        <span class="answer-hotkey">1</span>
+                    </button>
+
+                    <button class="answer-btn answer-probably" onclick="game.answerQuestion('probably')" data-hotkey="2">
+                        <div class="answer-icon-circle">
+                            <span class="answer-icon">↗</span>
+                        </div>
+                        <span class="answer-label">Probably</span>
+                        <div class="answer-ripple"></div>
+                        <span class="answer-hotkey">2</span>
+                    </button>
+
+                    <button class="answer-btn answer-maybe" onclick="game.answerQuestion('dontknow')" data-hotkey="3">
+                        <div class="answer-icon-circle">
+                            <span class="answer-icon">?</span>
+                        </div>
+                        <span class="answer-label">Don't Know</span>
+                        <div class="answer-ripple"></div>
+                        <span class="answer-hotkey">3</span>
+                    </button>
+
+                    <button class="answer-btn answer-probably-not" onclick="game.answerQuestion('probablynot')" data-hotkey="4">
+                        <div class="answer-icon-circle">
+                            <span class="answer-icon">↘</span>
+                        </div>
+                        <span class="answer-label">Probably Not</span>
+                        <div class="answer-ripple"></div>
+                        <span class="answer-hotkey">4</span>
+                    </button>
+
+                    <button class="answer-btn answer-no" onclick="game.answerQuestion('no')" data-hotkey="5">
+                        <div class="answer-icon-circle">
+                            <span class="answer-icon">✗</span>
+                        </div>
+                        <span class="answer-label">No</span>
+                        <div class="answer-ripple"></div>
+                        <span class="answer-hotkey">5</span>
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Result Screen -->
         <div class="screen" id="resultScreen">
-            <div class="result-animation">
-                <div class="result-burst"></div>
-                <div class="result-circle"></div>
-            </div>
-
-            <div class="result-content">
-                <h2 class="result-title">I Know!</h2>
-                <div class="result-emoji" id="resultEmoji">🎯</div>
-                <h3 class="result-name" id="resultName">The Taj Mahal</h3>
-                <div class="result-confidence">
-                    <div class="confidence-circle">
-                        <svg class="confidence-svg" viewBox="0 0 100 100">
-                            <circle class="confidence-bg" cx="50" cy="50" r="45"></circle>
-                            <circle class="confidence-progress" id="confidenceCircle" cx="50" cy="50" r="45"></circle>
-                        </svg>
-                        <div class="confidence-percentage" id="finalConfidence">95%</div>
-                    </div>
-                    <p class="confidence-label-result">Confidence Level</p>
+            <div class="result-wrapper">
+                <div class="result-celebration">
+                    <div class="celebration-burst"></div>
+                    <div class="celebration-ring"></div>
+                    <div class="celebration-sparkles"></div>
                 </div>
 
-                <div class="result-info" id="resultInfo">
-                    <p>Loading information...</p>
-                </div>
+                <div class="result-content">
+                    <h2 class="result-announcement">I've Got It! 🎉</h2>
 
-                <div class="result-stats">
-                    <div class="stat-item">
-                        <span class="stat-value" id="questionsAsked">10</span>
-                        <span class="stat-label">Questions</span>
-                    </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="possibleMatches">1</span>
-                        <span class="stat-label">Matches</span>
-                    </div>
-                </div>
+                    <div class="result-place-card">
+                        <div class="result-emoji-large" id="resultEmoji">🎯</div>
+                        <h3 class="result-place-name" id="resultName">The Taj Mahal</h3>
+                        
+                        <div class="confidence-circle-wrapper">
+                            <svg class="confidence-circle-svg" viewBox="0 0 120 120">
+                                <circle class="circle-bg" cx="60" cy="60" r="54"></circle>
+                                <circle class="circle-progress" id="confidenceCircle" cx="60" cy="60" r="54"></circle>
+                            </svg>
+                            <div class="confidence-circle-value">
+                                <span class="confidence-number" id="finalConfidence">95</span>
+                                <span class="confidence-symbol">%</span>
+                            </div>
+                        </div>
 
-                <div class="result-actions">
-                    <button class="btn-primary" onclick="game.playAgain()">
-                        <span>Play Again</span>
-                        <span class="btn-arrow">↻</span>
-                    </button>
-                    <button class="btn-secondary" onclick="game.showCategoryScreen()">
-                        <span>Change Category</span>
-                    </button>
+                        <p class="confidence-circle-label">Confidence Level</p>
+                    </div>
+
+                    <div class="result-info-card" id="resultInfo">
+                        <div class="info-icon">ℹ️</div>
+                        <p class="info-text">Loading information...</p>
+                    </div>
+
+                    <div class="result-stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-icon">❓</div>
+                            <div class="stat-value" id="questionsAsked">10</div>
+                            <div class="stat-label">Questions Asked</div>
+                        </div>
+                        
+                        <div class="stat-divider"></div>
+                        
+                        <div class="stat-box">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-value" id="possibleMatches">1</div>
+                            <div class="stat-label">Possible Matches</div>
+                        </div>
+                    </div>
+
+                    <div class="result-actions">
+                        <button class="btn btn-primary btn-large" onclick="game.playAgain()">
+                            <span class="btn-content">
+                                <span class="btn-icon">↻</span>
+                                <span class="btn-text">Play Again</span>
+                            </span>
+                        </button>
+                        
+                        <button class="btn btn-secondary" onclick="game.showCategoryScreen()">
+                            <span class="btn-icon">🔄</span>
+                            <span class="btn-text">Change Category</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Engine Info Screen (Hidden by default, accessible via footer) -->
+        <!-- Engine Info Screen -->
         <div class="screen" id="engineScreen">
             <div class="screen-header">
-                <h2 class="screen-title">🧠 AI Engine</h2>
-                <p class="screen-description">How GeoAI reads your mind</p>
+                <div class="engine-icon">⚙️</div>
+                <h2 class="screen-title">AI Engine Architecture</h2>
+                <p class="screen-subtitle">Discover how GeoAI reads your mind</p>
             </div>
 
-            <div class="engine-info">
+            <div class="engine-cards-grid">
                 <div class="engine-card">
-                    <h3>🎯 Information Gain Algorithm</h3>
-                    <p>Uses entropy-based calculations to select the most informative questions, splitting the possibility space efficiently.</p>
+                    <div class="engine-card-header">
+                        <span class="engine-card-icon">🎯</span>
+                        <h3 class="engine-card-title">Information Gain Algorithm</h3>
+                    </div>
+                    <p class="engine-card-text">
+                        Uses entropy-based calculations to select the most informative questions, 
+                        efficiently splitting the possibility space with each answer.
+                    </p>
+                    <div class="engine-card-badge">Core Algorithm</div>
                 </div>
 
                 <div class="engine-card">
-                    <h3>🔍 Bayesian Inference</h3>
-                    <p>Updates probabilities based on your answers using weighted confidence scores for each response type.</p>
+                    <div class="engine-card-header">
+                        <span class="engine-card-icon">🔍</span>
+                        <h3 class="engine-card-title">Bayesian Inference</h3>
+                    </div>
+                    <p class="engine-card-text">
+                        Dynamically updates probabilities based on your answers using weighted 
+                        confidence scores for each response type.
+                    </p>
+                    <div class="engine-card-badge">Probability Engine</div>
                 </div>
 
                 <div class="engine-card">
-                    <h3>🌳 Decision Tree Optimization</h3>
-                    <p>Dynamically builds an optimal decision path to narrow down possibilities in minimum questions.</p>
+                    <div class="engine-card-header">
+                        <span class="engine-card-icon">🌳</span>
+                        <h3 class="engine-card-title">Decision Tree Optimization</h3>
+                    </div>
+                    <p class="engine-card-text">
+                        Builds an optimal decision path in real-time to narrow down possibilities 
+                        with minimum questions.
+                    </p>
+                    <div class="engine-card-badge">Path Finding</div>
                 </div>
 
-                <div class="engine-card">
-                    <h3>📊 Answer Weights</h3>
-                    <ul class="weight-list">
-                        <li><strong>Yes:</strong> 1.0 (100% match)</li>
-                        <li><strong>Probably:</strong> 0.75 (75% match)</li>
-                        <li><strong>Don't Know:</strong> 0.5 (neutral)</li>
-                        <li><strong>Probably Not:</strong> 0.25 (25% match)</li>
-                        <li><strong>No:</strong> 0.0 (0% match)</li>
-                    </ul>
+                <div class="engine-card engine-card-full">
+                    <div class="engine-card-header">
+                        <span class="engine-card-icon">📊</span>
+                        <h3 class="engine-card-title">Answer Weight System</h3>
+                    </div>
+                    <div class="weight-system">
+                        <div class="weight-item">
+                            <span class="weight-label">Yes</span>
+                            <div class="weight-bar">
+                                <div class="weight-fill" style="width: 100%"></div>
+                            </div>
+                            <span class="weight-value">1.0</span>
+                        </div>
+                        <div class="weight-item">
+                            <span class="weight-label">Probably</span>
+                            <div class="weight-bar">
+                                <div class="weight-fill" style="width: 75%"></div>
+                            </div>
+                            <span class="weight-value">0.75</span>
+                        </div>
+                        <div class="weight-item">
+                            <span class="weight-label">Don't Know</span>
+                            <div class="weight-bar">
+                                <div class="weight-fill" style="width: 50%"></div>
+                            </div>
+                            <span class="weight-value">0.5</span>
+                        </div>
+                        <div class="weight-item">
+                            <span class="weight-label">Probably Not</span>
+                            <div class="weight-bar">
+                                <div class="weight-fill" style="width: 25%"></div>
+                            </div>
+                            <span class="weight-value">0.25</span>
+                        </div>
+                        <div class="weight-item">
+                            <span class="weight-label">No</span>
+                            <div class="weight-bar">
+                                <div class="weight-fill" style="width: 0%"></div>
+                            </div>
+                            <span class="weight-value">0.0</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <button class="btn-secondary" onclick="game.closeEngineScreen()">
-                <span>← Back</span>
+            <button class="btn btn-secondary" onclick="game.closeEngineScreen()">
+                <span class="btn-icon">←</span>
+                <span class="btn-text">Back to Home</span>
             </button>
         </div>
     </div>
 
     <!-- Footer -->
-    <div class="footer">
-        <button class="footer-btn" onclick="game.showEngineScreen()">
-            <span>⚙️</span>
-            <span>Engine Info</span>
+    <footer class="app-footer">
+        <button class="footer-btn" onclick="game.showEngineScreen()" aria-label="View Engine Info">
+            <span class="footer-btn-icon">⚙️</span>
+            <span class="footer-btn-text">How It Works</span>
         </button>
-        <div class="footer-text">
-            Powered by Advanced AI Algorithm
+        
+        <div class="footer-info">
+            <span class="footer-badge">
+                <span class="pulse-dot"></span>
+                <span>Powered by Advanced AI</span>
+            </span>
+        </div>
+    </footer>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading AI Engine...</p>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="js/dataset.js"></script>
-    <script src="js/questions.js"></script>
-    <script src="js/algorithm.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
     <script src="js/game.js"></script>
     <script src="js/animations.js"></script>
     <script src="js/main.js"></script>
 </body>
-</html>
+    </html>
