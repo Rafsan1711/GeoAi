@@ -1,11 +1,17 @@
-// main.js - Application initialization and global event handlers
+// main.js - Application Entry Point
 
 /**
  * Initialize the application when DOM is loaded
  */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🌍 GeoAI - Mind Reading Geography Game');
+    console.log('Version 2.0 | Initializing...');
+
     // Initialize animations
-    animations.init();
+    animationController.init();
+
+    // Initialize game
+    await game.initialize();
 
     // Show welcome screen
     game.showWelcomeScreen();
@@ -13,27 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add keyboard shortcuts
     addKeyboardShortcuts();
 
-    // Add smooth scroll behavior
-    document.documentElement.style.scrollBehavior = 'smooth';
+    // Add visibility change handler
+    addVisibilityHandler();
 
-    // Prevent accidental page refresh
-    window.addEventListener('beforeunload', (e) => {
-        if (game.state.questionNumber > 0 && game.state.questionNumber < game.state.maxQuestions) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
+    // Add window resize handler
+    addResizeHandler();
 
-    // Add gradient to confidence circle
-    addSVGGradient();
+    // Log performance metrics
+    logPerformanceMetrics();
 
-    // Log initialization
-    console.log('🌍 GeoAI initialized successfully!');
-    console.log('📊 Dataset loaded:', {
-        countries: dataset.country.length,
-        cities: dataset.city.length,
-        places: dataset.place.length
-    });
+    // Show console welcome message
+    showConsoleWelcome();
+
+    console.log('✅ Application ready!');
 });
 
 /**
@@ -48,23 +46,18 @@ function addKeyboardShortcuts() {
         if (currentScreen.id === 'questionScreen') {
             switch(e.key) {
                 case '1':
-                case 'y':
                     game.answerQuestion('yes');
                     break;
                 case '2':
-                case 'p':
                     game.answerQuestion('probably');
                     break;
                 case '3':
-                case 'd':
                     game.answerQuestion('dontknow');
                     break;
                 case '4':
-                case 'n':
                     game.answerQuestion('probablynot');
                     break;
                 case '5':
-                case 'x':
                     game.answerQuestion('no');
                     break;
             }
@@ -92,76 +85,90 @@ function addKeyboardShortcuts() {
 }
 
 /**
- * Add SVG gradient for confidence circle
+ * Add visibility change handler
  */
-function addSVGGradient() {
-    const svg = document.querySelector('.confidence-svg');
-    if (!svg) return;
-
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-    gradient.setAttribute('id', 'gradient');
-    gradient.setAttribute('x1', '0%');
-    gradient.setAttribute('y1', '0%');
-    gradient.setAttribute('x2', '100%');
-    gradient.setAttribute('y2', '100%');
-
-    const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    stop1.setAttribute('offset', '0%');
-    stop1.setAttribute('stop-color', '#3b82f6');
-
-    const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    stop2.setAttribute('offset', '100%');
-    stop2.setAttribute('stop-color', '#60a5fa');
-
-    gradient.appendChild(stop1);
-    gradient.appendChild(stop2);
-    defs.appendChild(gradient);
-    svg.appendChild(defs);
+function addVisibilityHandler() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (CONFIG.DEBUG.ENABLED) {
+                console.log('⏸️ App paused (tab hidden)');
+            }
+        } else {
+            if (CONFIG.DEBUG.ENABLED) {
+                console.log('▶️ App resumed (tab visible)');
+            }
+        }
+    });
 }
 
 /**
- * Utility: Log game statistics (for debugging)
+ * Add window resize handler
  */
-function logGameStats() {
-    if (game.state.possibleItems.length > 0) {
-        const stats = aiEngine.getStats(game.state.possibleItems);
-        console.log('📈 Current Game Stats:', {
-            questionNumber: game.state.questionNumber,
-            possibleItems: stats.itemCount,
-            confidence: stats.confidence + '%',
-            topGuess: game.state.possibleItems[0]?.name,
-            topProbability: stats.topProbability?.toFixed(2)
+function addResizeHandler() {
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (CONFIG.DEBUG.ENABLED) {
+                console.log('📐 Window resized:', {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                });
+            }
+        }, 250);
+    });
+}
+
+/**
+ * Log performance metrics
+ */
+function logPerformanceMetrics() {
+    if ('performance' in window) {
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const perfData = performance.getEntriesByType('navigation')[0];
+                if (perfData) {
+                    console.log('⚡ Performance Metrics:', {
+                        loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
+                        domReady: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms',
+                        firstPaint: Math.round(performance.getEntriesByType('paint')[0]?.startTime || 0) + 'ms'
+                    });
+                }
+            }, 0);
         });
     }
 }
 
 /**
- * Utility: Debug mode toggle
+ * Show console welcome message
  */
-let debugMode = false;
-window.toggleDebug = () => {
-    debugMode = !debugMode;
-    console.log('🐛 Debug mode:', debugMode ? 'ON' : 'OFF');
-    
-    if (debugMode) {
-        // Show additional info
-        document.addEventListener('click', logGameStats);
-    } else {
-        document.removeEventListener('click', logGameStats);
-    }
-};
+function showConsoleWelcome() {
+    console.log(`
+%c🌍 GeoAI - Mind Reading Geography Game
+%cVersion 2.0 | Built with Advanced AI Algorithm
+%cCommands:
+• toggleDebug() - Toggle debug mode
+• exportGameData() - Export current game data
+• clearCache() - Clear API cache
+• getStats() - Get game statistics
+`,
+'font-size: 20px; font-weight: bold; color: #6366f1',
+'font-size: 12px; color: #94a3b8',
+'font-size: 11px; color: #64748b'
+    );
+}
 
 /**
- * Utility: Export game data (for analysis)
+ * Utility: Export game data (for debugging)
  */
 window.exportGameData = () => {
     const data = {
         category: game.state.category,
         answers: game.state.answers,
         questionNumber: game.state.questionNumber,
-        finalGuess: aiEngine.getBestGuess(game.state.possibleItems),
-        confidence: aiEngine.calculateConfidence(game.state.possibleItems),
+        finalGuess: localAlgorithm.getBestGuess(game.state.possibleItems),
+        confidence: localAlgorithm.calculateConfidence(game.state.possibleItems),
+        possibleItems: game.state.possibleItems.length,
         timestamp: new Date().toISOString()
     };
 
@@ -178,73 +185,130 @@ window.exportGameData = () => {
 };
 
 /**
- * Handle visibility change (pause/resume)
+ * Utility: Toggle debug mode
  */
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        console.log('⏸️ App paused');
-    } else {
-        console.log('▶️ App resumed');
+window.toggleDebug = () => {
+    CONFIG.DEBUG.ENABLED = !CONFIG.DEBUG.ENABLED;
+    console.log('🛠️ Debug mode:', CONFIG.DEBUG.ENABLED ? 'ON' : 'OFF');
+    
+    if (CONFIG.DEBUG.ENABLED) {
+        console.log('Current game state:', game.state);
+    }
+};
+
+/**
+ * Utility: Clear API cache
+ */
+window.clearCache = () => {
+    apiHandler.clearCache();
+    console.log('🗑️ API cache cleared');
+};
+
+/**
+ * Utility: Get game statistics
+ */
+window.getStats = () => {
+    const stats = {
+        gameState: {
+            category: game.state.category,
+            questionNumber: game.state.questionNumber,
+            possibleItems: game.state.possibleItems.length,
+            askedQuestions: game.state.askedQuestions.length
+        },
+        apiCache: apiHandler.getCacheStats(),
+        performance: {
+            memory: performance.memory ? {
+                used: Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB',
+                total: Math.round(performance.memory.totalJSHeapSize / 1048576) + 'MB'
+            } : 'N/A'
+        }
+    };
+    
+    console.table(stats.gameState);
+    console.log('📊 Full stats:', stats);
+    return stats;
+};
+
+/**
+ * Utility: Test API connection
+ */
+window.testAPI = async () => {
+    console.log('🔌 Testing API connection...');
+    
+    try {
+        const response = await fetch(CONFIG.API.BASE_URL);
+        const data = await response.json();
+        console.log('✅ API connected:', data);
+        return data;
+    } catch (error) {
+        console.error('❌ API connection failed:', error);
+        return null;
+    }
+};
+
+/**
+ * Utility: Reload game data
+ */
+window.reloadData = async () => {
+    console.log('🔄 Reloading game data...');
+    await apiHandler.loadAllData();
+    console.log('✅ Data reloaded');
+};
+
+/**
+ * Handle beforeunload - warn user if game is in progress
+ */
+window.addEventListener('beforeunload', (e) => {
+    if (game.state.questionNumber > 0 && game.state.questionNumber < game.state.maxQuestions) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
     }
 });
 
 /**
- * Handle window resize
+ * Handle errors globally
  */
-let resizeTimer;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        console.log('📐 Window resized:', {
-            width: window.innerWidth,
-            height: window.innerHeight
+window.addEventListener('error', (e) => {
+    console.error('Global error:', e.error);
+    
+    if (CONFIG.DEBUG.ENABLED) {
+        console.error('Error details:', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno
         });
-    }, 250);
+    }
 });
 
 /**
- * Performance monitoring
+ * Handle unhandled promise rejections
  */
-if ('performance' in window) {
+window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled promise rejection:', e.reason);
+    
+    if (CONFIG.DEBUG.ENABLED) {
+        console.error('Promise rejection details:', e);
+    }
+});
+
+/**
+ * Service Worker registration (for PWA - optional)
+ */
+if ('serviceWorker' in navigator && CONFIG.FEATURES.ENABLE_PWA) {
     window.addEventListener('load', () => {
-        setTimeout(() => {
-            const perfData = performance.getEntriesByType('navigation')[0];
-            console.log('⚡ Performance:', {
-                loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
-                domReady: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms'
-            });
-        }, 0);
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('✅ Service Worker registered:', reg.scope))
+            .catch(err => console.log('❌ Service Worker registration failed:', err));
     });
 }
 
-/**
- * Service Worker registration (optional - for PWA)
- */
-if ('serviceWorker' in navigator) {
-    // Uncomment to enable PWA features
-    // window.addEventListener('load', () => {
-    //     navigator.serviceWorker.register('/sw.js')
-    //         .then(reg => console.log('✅ Service Worker registered'))
-    //         .catch(err => console.log('❌ Service Worker registration failed'));
-    // });
+// Expose instances for debugging
+if (CONFIG.DEBUG.ENABLED) {
+    window.game = game;
+    window.apiHandler = apiHandler;
+    window.localAlgorithm = localAlgorithm;
+    window.animationController = animationController;
+    window.CONFIG = CONFIG;
 }
-
-/**
- * Console welcome message
- */
-console.log(`
-%c🌍 GeoAI - Mind Reading Geography Game
-%cVersion 2.0 | Built with Advanced AI Algorithm
-%cCommands:
-- toggleDebug() - Enable/disable debug mode
-- exportGameData() - Export current game data
-`,
-'font-size: 20px; font-weight: bold; color: #3b82f6',
-'font-size: 12px; color: #9ca3af',
-'font-size: 11px; color: #6b7280'
-);
-
-// Expose game for debugging
-window.game = game;
-window.aiEngine = aiEngine;
-window.animations = animations;
