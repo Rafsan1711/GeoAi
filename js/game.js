@@ -1,4 +1,4 @@
-// game.js - Game state management and flow control
+// game.js - Game State Management and Flow Control
 
 class Game {
     constructor() {
@@ -6,10 +6,101 @@ class Game {
             category: null,
             currentQuestion: null,
             questionNumber: 0,
-            maxQuestions: 15,
+            maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
             askedQuestions: [],
             possibleItems: [],
-            answers: []
+            answers: [],
+            questions: null
+        };
+        
+        this.dataLoaded = false;
+        this.questionBank = {};
+    }
+
+    /**
+     * Initialize game data
+     */
+    async initialize() {
+        try {
+            // Show loading screen
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.classList.remove('hidden');
+            }
+
+            // Load all data
+            await apiHandler.loadAllData();
+            
+            // Load question banks
+            await this.loadQuestionBanks();
+            
+            this.dataLoaded = true;
+            
+            // Hide loading screen
+            if (loadingScreen) {
+                setTimeout(() => {
+                    loadingScreen.classList.add('hidden');
+                }, 500);
+            }
+
+            console.log('✅ Game initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize game:', error);
+            alert('Failed to load game data. Please refresh the page.');
+        }
+    }
+
+    /**
+     * Load question banks for all categories
+     */
+    async loadQuestionBanks() {
+        // For now, we'll define questions inline
+        // In production, these could come from JSON files
+        this.questionBank = {
+            country: [
+                // Continent questions
+                { question: "Is it located in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
+                { question: "Is it located in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
+                { question: "Is it located in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
+                { question: "Is it located in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
+                { question: "Is it located in South America?", attribute: "continent", value: "southamerica", weight: 1.0 },
+                { question: "Is it located in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
+                
+                // Geographic features
+                { question: "Does this country have a coastline?", attribute: "hasCoast", value: true, weight: 0.7 },
+                { question: "Does it have major mountain ranges?", attribute: "hasMountains", value: true, weight: 0.6 },
+                { question: "Is it an island nation?", attribute: "isIsland", value: true, weight: 0.8 },
+                
+                // Population
+                { question: "Does it have a very large population (over 200 million)?", attribute: "population", value: "verylarge", weight: 0.85 },
+                { question: "Does it have a large population (50-200 million)?", attribute: "population", value: "large", weight: 0.7 },
+                
+                // Climate
+                { question: "Does it have a tropical climate?", attribute: "climate", value: "tropical", weight: 0.65 },
+                { question: "Does it have a desert climate?", attribute: "climate", value: "desert", weight: 0.75 },
+                { question: "Does it have a temperate climate?", attribute: "climate", value: "temperate", weight: 0.6 }
+            ],
+            
+            city: [
+                { question: "Is it a capital city?", attribute: "isCapital", value: true, weight: 0.85 },
+                { question: "Is it located in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
+                { question: "Is it located in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
+                { question: "Is it located in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
+                { question: "Does a major river run through it?", attribute: "hasRiver", value: true, weight: 0.7 },
+                { question: "Does it have a metro/subway system?", attribute: "hasMetro", value: true, weight: 0.6 },
+                { question: "Is it a very large city (over 10 million people)?", attribute: "size", value: "verylarge", weight: 0.8 }
+            ],
+            
+            place: [
+                { question: "Is it located in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
+                { question: "Is it located in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
+                { question: "Is it located in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
+                { question: "Is it a monument or memorial?", attribute: "type", value: "monument", weight: 0.8 },
+                { question: "Is it from ancient times (over 2000 years old)?", attribute: "age", value: "ancient", weight: 0.85 },
+                { question: "Is it a completely natural place (not man-made)?", attribute: "isNatural", value: true, weight: 0.85 },
+                { question: "Is it a religious or spiritual site?", attribute: "isReligious", value: true, weight: 0.8 },
+                { question: "Can tourists visit it?", attribute: "visitorsAllowed", value: true, weight: 0.5 }
+            ]
         };
     }
 
@@ -38,7 +129,7 @@ class Game {
         const categoryNames = {
             'country': 'country',
             'city': 'city',
-            'place': 'landmark'
+            'place': 'historic place'
         };
         
         document.getElementById('thinkingCategory').textContent = categoryNames[category];
@@ -59,6 +150,11 @@ class Game {
     showResultScreen() {
         this.hideAllScreens();
         document.getElementById('resultScreen').classList.add('active');
+        
+        // Trigger confetti animation
+        if (CONFIG.UI.ENABLE_ANIMATIONS) {
+            animationController.createConfetti();
+        }
     }
 
     /**
@@ -70,7 +166,7 @@ class Game {
     }
 
     /**
-     * Close engine screen and return to welcome
+     * Close engine screen
      */
     closeEngineScreen() {
         this.showWelcomeScreen();
@@ -88,14 +184,30 @@ class Game {
     /**
      * Start a new game
      */
-    startGame(category) {
+    async startGame(category) {
+        if (!this.dataLoaded) {
+            alert('Game data is still loading. Please wait...');
+            return;
+        }
+
         this.state.category = category;
         this.state.questionNumber = 0;
         this.state.askedQuestions = [];
         this.state.answers = [];
+        this.state.questions = this.questionBank[category] || [];
         
+        // Get items for category
+        const items = apiHandler.getData(category);
+        if (items.length === 0) {
+            alert('No data available for this category.');
+            return;
+        }
+
         // Initialize items with probabilities
-        this.state.possibleItems = aiEngine.initializeItems([...dataset[category]]);
+        this.state.possibleItems = items.map(item => ({
+            ...item,
+            probability: 1.0
+        }));
         
         // Show thinking animation
         this.showThinkingScreen(category);
@@ -104,15 +216,15 @@ class Game {
         setTimeout(() => {
             this.showQuestionScreen();
             this.askNextQuestion();
-        }, 3000);
+        }, CONFIG.GAME.THINKING_DURATION);
     }
 
     /**
      * Ask the next question
      */
-    askNextQuestion() {
+    async askNextQuestion() {
         // Check if we should stop
-        if (aiEngine.shouldStopAsking(
+        if (localAlgorithm.shouldStopAsking(
             this.state.possibleItems,
             this.state.questionNumber,
             this.state.maxQuestions
@@ -121,9 +233,9 @@ class Game {
             return;
         }
 
-        // Select best question using AI
-        const question = aiEngine.selectBestQuestion(
-            this.state.category,
+        // Select best question
+        const question = localAlgorithm.selectBestQuestion(
+            this.state.questions,
             this.state.askedQuestions,
             this.state.possibleItems
         );
@@ -145,8 +257,14 @@ class Game {
      * Update question UI
      */
     updateQuestionUI(question) {
-        // Update question text
-        document.getElementById('questionText').textContent = question.question;
+        // Update question text with animation
+        const questionText = document.getElementById('questionText');
+        questionText.style.opacity = '0';
+        
+        setTimeout(() => {
+            questionText.textContent = question.question;
+            questionText.style.opacity = '1';
+        }, 150);
 
         // Update progress
         const progress = (this.state.questionNumber / this.state.maxQuestions) * 100;
@@ -155,8 +273,13 @@ class Game {
             `Question ${this.state.questionNumber} / ${this.state.maxQuestions}`;
 
         // Update confidence
-        const confidence = aiEngine.calculateConfidence(this.state.possibleItems);
+        const confidence = localAlgorithm.calculateConfidence(this.state.possibleItems);
         document.getElementById('confidenceValue').textContent = confidence + '%';
+        
+        const confidenceBar = document.getElementById('confidenceBar');
+        if (confidenceBar) {
+            confidenceBar.style.width = confidence + '%';
+        }
     }
 
     /**
@@ -169,39 +292,42 @@ class Game {
             answer: answer
         });
 
-        // Update possible items using AI
-        this.state.possibleItems = aiEngine.filterItems(
+        // Update possible items
+        this.state.possibleItems = localAlgorithm.filterItems(
             this.state.possibleItems,
             this.state.currentQuestion,
             answer
         );
 
-        // Ask next question after a brief delay for animation
+        // Ask next question after delay
         setTimeout(() => {
             this.askNextQuestion();
-        }, 300);
+        }, CONFIG.GAME.QUESTION_DELAY);
     }
 
     /**
      * Show final result
      */
     showResult() {
-        const bestGuess = aiEngine.getBestGuess(this.state.possibleItems);
+        const bestGuess = localAlgorithm.getBestGuess(this.state.possibleItems);
         
         if (!bestGuess) {
-            // Fallback if no guess available
-            this.state.possibleItems = [dataset[this.state.category][0]];
-            this.showResult();
+            // Fallback
+            const items = apiHandler.getData(this.state.category);
+            if (items.length > 0) {
+                this.state.possibleItems = [items[0]];
+                this.showResult();
+            }
             return;
         }
 
-        const confidence = aiEngine.calculateConfidence(this.state.possibleItems);
+        const confidence = localAlgorithm.calculateConfidence(this.state.possibleItems);
 
         // Update result UI
         document.getElementById('resultEmoji').textContent = bestGuess.emoji || '🎯';
         document.getElementById('resultName').textContent = bestGuess.name;
-        document.getElementById('resultInfo').innerHTML = `<p>${bestGuess.info}</p>`;
-        document.getElementById('finalConfidence').textContent = confidence + '%';
+        document.getElementById('resultInfo').innerHTML = `<p class="info-text">${bestGuess.info || 'No additional information available.'}</p>`;
+        document.getElementById('finalConfidence').textContent = confidence;
         document.getElementById('questionsAsked').textContent = this.state.questionNumber;
         document.getElementById('possibleMatches').textContent = this.state.possibleItems.length;
 
@@ -213,19 +339,21 @@ class Game {
     }
 
     /**
-     * Animate the confidence circle
+     * Animate confidence circle
      */
     animateConfidenceCircle(confidence) {
         const circle = document.getElementById('confidenceCircle');
-        const circumference = 2 * Math.PI * 45; // radius is 45
+        const circumference = 2 * Math.PI * 54; // radius is 54
         const offset = circumference - (confidence / 100) * circumference;
         
-        circle.style.strokeDasharray = circumference;
-        circle.style.strokeDashoffset = circumference;
-        
-        setTimeout(() => {
-            circle.style.strokeDashoffset = offset;
-        }, 100);
+        if (circle) {
+            circle.style.strokeDasharray = circumference;
+            circle.style.strokeDashoffset = circumference;
+            
+            setTimeout(() => {
+                circle.style.strokeDashoffset = offset;
+            }, 100);
+        }
     }
 
     /**
@@ -247,10 +375,11 @@ class Game {
             category: null,
             currentQuestion: null,
             questionNumber: 0,
-            maxQuestions: 15,
+            maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
             askedQuestions: [],
             possibleItems: [],
-            answers: []
+            answers: [],
+            questions: null
         };
         this.showWelcomeScreen();
     }
