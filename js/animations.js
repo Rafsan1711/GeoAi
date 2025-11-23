@@ -1,24 +1,35 @@
-// animations.js - Visual effects and animations
+// animations.js - Animation Controller
 
-class Animations {
+class AnimationController {
     constructor() {
         this.particlesCreated = false;
     }
 
     /**
-     * Create floating particles in background
+     * Initialize all animations
+     */
+    init() {
+        this.createParticles();
+        this.addButtonRipples();
+        this.addSVGGradient();
+        console.log('🎨 Animations initialized');
+    }
+
+    /**
+     * Create floating particles
      */
     createParticles() {
-        if (this.particlesCreated) return;
+        if (this.particlesCreated || !CONFIG.UI.ENABLE_ANIMATIONS) return;
         
         const particlesContainer = document.getElementById('particles');
-        const particleCount = 30;
+        if (!particlesContainer) return;
+
+        const particleCount = CONFIG.UI.PARTICLE_COUNT;
 
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
             
-            // Random position
             const x = Math.random() * 100;
             const y = Math.random() * 100;
             const size = Math.random() * 4 + 2;
@@ -31,9 +42,9 @@ class Animations {
                 top: ${y}%;
                 width: ${size}px;
                 height: ${size}px;
-                background: radial-gradient(circle, rgba(59, 130, 246, 0.6), transparent);
+                background: radial-gradient(circle, rgba(99, 102, 241, 0.6), transparent);
                 border-radius: 50%;
-                animation: float ${duration}s ease-in-out infinite;
+                animation: particleFloat ${duration}s ease-in-out infinite;
                 animation-delay: ${delay}s;
                 pointer-events: none;
             `;
@@ -41,40 +52,24 @@ class Animations {
             particlesContainer.appendChild(particle);
         }
 
-        // Add float animation if not exists
-        if (!document.getElementById('particle-float-style')) {
-            const style = document.createElement('style');
-            style.id = 'particle-float-style';
-            style.textContent = `
-                @keyframes float {
-                    0%, 100% {
-                        transform: translate(0, 0) scale(1);
-                        opacity: 0.3;
-                    }
-                    25% {
-                        transform: translate(20px, -20px) scale(1.2);
-                        opacity: 0.6;
-                    }
-                    50% {
-                        transform: translate(-20px, -40px) scale(0.8);
-                        opacity: 0.4;
-                    }
-                    75% {
-                        transform: translate(10px, -20px) scale(1.1);
-                        opacity: 0.5;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
         this.particlesCreated = true;
     }
 
     /**
-     * Add ripple effect on button click
+     * Add ripple effect to buttons
      */
-    addRippleEffect(element, event) {
+    addButtonRipples() {
+        document.querySelectorAll('.btn, .answer-btn, .category-card').forEach(element => {
+            element.addEventListener('click', (e) => {
+                this.createRipple(element, e);
+            });
+        });
+    }
+
+    /**
+     * Create ripple effect
+     */
+    createRipple(element, event) {
         const ripple = document.createElement('span');
         const rect = element.getBoundingClientRect();
         const size = Math.max(rect.width, rect.height);
@@ -87,11 +82,12 @@ class Animations {
             height: ${size}px;
             left: ${x}px;
             top: ${y}px;
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.4);
             border-radius: 50%;
             transform: scale(0);
             animation: ripple 0.6s ease-out;
             pointer-events: none;
+            z-index: 10;
         `;
 
         element.style.position = 'relative';
@@ -102,70 +98,11 @@ class Animations {
     }
 
     /**
-     * Shake animation for incorrect guess (optional feature)
-     */
-    shake(element) {
-        element.style.animation = 'shake 0.5s';
-        setTimeout(() => {
-            element.style.animation = '';
-        }, 500);
-    }
-
-    /**
-     * Fade transition between screens
-     */
-    fadeTransition(fromElement, toElement, duration = 300) {
-        fromElement.style.transition = `opacity ${duration}ms`;
-        fromElement.style.opacity = '0';
-
-        setTimeout(() => {
-            fromElement.classList.remove('active');
-            fromElement.style.opacity = '1';
-            
-            toElement.classList.add('active');
-            toElement.style.opacity = '0';
-            
-            setTimeout(() => {
-                toElement.style.transition = `opacity ${duration}ms`;
-                toElement.style.opacity = '1';
-            }, 50);
-        }, duration);
-    }
-
-    /**
-     * Pulse animation for important elements
-     */
-    pulse(element, duration = 1000) {
-        element.style.animation = `pulse ${duration}ms`;
-        setTimeout(() => {
-            element.style.animation = '';
-        }, duration);
-    }
-
-    /**
-     * Typewriter effect for text
-     */
-    typewriter(element, text, speed = 50) {
-        element.textContent = '';
-        let i = 0;
-
-        const type = () => {
-            if (i < text.length) {
-                element.textContent += text.charAt(i);
-                i++;
-                setTimeout(type, speed);
-            }
-        };
-
-        type();
-    }
-
-    /**
-     * Confetti effect for correct guess
+     * Create confetti effect
      */
     createConfetti() {
-        const colors = ['#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe', '#10b981', '#f59e0b'];
-        const confettiCount = 50;
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
+        const confettiCount = CONFIG.UI.CONFETTI_COUNT;
 
         for (let i = 0; i < confettiCount; i++) {
             const confetti = document.createElement('div');
@@ -173,18 +110,20 @@ class Animations {
             const x = Math.random() * window.innerWidth;
             const duration = Math.random() * 3 + 2;
             const delay = Math.random() * 0.5;
+            const rotation = Math.random() * 360;
 
             confetti.style.cssText = `
                 position: fixed;
                 left: ${x}px;
-                top: -10px;
+                top: -20px;
                 width: 10px;
                 height: 10px;
                 background: ${color};
-                opacity: 0.8;
-                animation: fall ${duration}s linear ${delay}s forwards;
+                opacity: 0.9;
+                animation: confettiFall ${duration}s linear ${delay}s forwards;
                 pointer-events: none;
                 z-index: 9999;
+                transform: rotate(${rotation}deg);
                 border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
             `;
 
@@ -192,35 +131,56 @@ class Animations {
 
             setTimeout(() => confetti.remove(), (duration + delay) * 1000);
         }
-
-        // Add fall animation
-        if (!document.getElementById('confetti-fall-style')) {
-            const style = document.createElement('style');
-            style.id = 'confetti-fall-style';
-            style.textContent = `
-                @keyframes fall {
-                    to {
-                        transform: translateY(100vh) rotate(360deg);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
     }
 
     /**
-     * Glow effect on hover
+     * Add SVG gradient for confidence circle
      */
-    addGlowEffect(element) {
-        element.addEventListener('mouseenter', () => {
-            element.style.filter = 'brightness(1.2)';
-            element.style.transition = 'filter 0.3s';
-        });
+    addSVGGradient() {
+        const svgs = document.querySelectorAll('.confidence-circle-svg');
+        
+        svgs.forEach(svg => {
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            gradient.setAttribute('id', 'gradient');
+            gradient.setAttribute('x1', '0%');
+            gradient.setAttribute('y1', '0%');
+            gradient.setAttribute('x2', '100%');
+            gradient.setAttribute('y2', '100%');
 
-        element.addEventListener('mouseleave', () => {
-            element.style.filter = 'brightness(1)';
+            const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stop1.setAttribute('offset', '0%');
+            stop1.setAttribute('stop-color', '#6366f1');
+
+            const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stop2.setAttribute('offset', '100%');
+            stop2.setAttribute('stop-color', '#8b5cf6');
+
+            gradient.appendChild(stop1);
+            gradient.appendChild(stop2);
+            defs.appendChild(gradient);
+            svg.appendChild(defs);
         });
+    }
+
+    /**
+     * Shake animation
+     */
+    shake(element) {
+        element.classList.add('animate-shake');
+        setTimeout(() => {
+            element.classList.remove('animate-shake');
+        }, 500);
+    }
+
+    /**
+     * Pulse animation
+     */
+    pulse(element) {
+        element.classList.add('animate-pulse');
+        setTimeout(() => {
+            element.classList.remove('animate-pulse');
+        }, 1000);
     }
 
     /**
@@ -242,58 +202,95 @@ class Animations {
     }
 
     /**
-     * Add shake keyframes if not exists
+     * Fade in animation
      */
-    addShakeKeyframes() {
-        if (!document.getElementById('shake-keyframes')) {
-            const style = document.createElement('style');
-            style.id = 'shake-keyframes';
-            style.textContent = `
-                @keyframes shake {
-                    0%, 100% { transform: translateX(0); }
-                    10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
-                    20%, 40%, 60%, 80% { transform: translateX(10px); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
+    fadeIn(element, duration = 300) {
+        element.style.opacity = '0';
+        element.style.display = 'block';
+        
+        setTimeout(() => {
+            element.style.transition = `opacity ${duration}ms`;
+            element.style.opacity = '1';
+        }, 10);
     }
 
     /**
-     * Initialize all animations
+     * Fade out animation
      */
-    init() {
-        this.createParticles();
-        this.addShakeKeyframes();
+    fadeOut(element, duration = 300) {
+        element.style.transition = `opacity ${duration}ms`;
+        element.style.opacity = '0';
+        
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, duration);
+    }
 
-        // Add ripple to all buttons
-        document.querySelectorAll('button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                this.addRippleEffect(button, e);
-            });
-        });
+    /**
+     * Slide in from left
+     */
+    slideInLeft(element, duration = 500) {
+        element.style.transform = 'translateX(-100%)';
+        element.style.opacity = '0';
+        element.style.display = 'block';
+        
+        setTimeout(() => {
+            element.style.transition = `all ${duration}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+            element.style.transform = 'translateX(0)';
+            element.style.opacity = '1';
+        }, 10);
+    }
 
-        // Add glow to category cards
-        document.querySelectorAll('.category-card').forEach(card => {
-            this.addGlowEffect(card);
-        });
+    /**
+     * Slide in from right
+     */
+    slideInRight(element, duration = 500) {
+        element.style.transform = 'translateX(100%)';
+        element.style.opacity = '0';
+        element.style.display = 'block';
+        
+        setTimeout(() => {
+            element.style.transition = `all ${duration}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+            element.style.transform = 'translateX(0)';
+            element.style.opacity = '1';
+        }, 10);
+    }
 
-        // Add ripple style
-        if (!document.getElementById('ripple-style')) {
-            const style = document.createElement('style');
-            style.id = 'ripple-style';
-            style.textContent = `
-                @keyframes ripple {
-                    to {
-                        transform: scale(4);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
+    /**
+     * Bounce animation
+     */
+    bounce(element) {
+        element.classList.add('animate-bounce');
+        setTimeout(() => {
+            element.classList.remove('animate-bounce');
+        }, 1000);
+    }
+
+    /**
+     * Scale up animation
+     */
+    scaleUp(element, duration = 300) {
+        element.style.transform = 'scale(0)';
+        element.style.display = 'block';
+        
+        setTimeout(() => {
+            element.style.transition = `transform ${duration}ms cubic-bezier(0.68, -0.55, 0.265, 1.55)`;
+            element.style.transform = 'scale(1)';
+        }, 10);
+    }
+
+    /**
+     * Rotate animation
+     */
+    rotate(element, degrees = 360, duration = 500) {
+        element.style.transition = `transform ${duration}ms ease-in-out`;
+        element.style.transform = `rotate(${degrees}deg)`;
+        
+        setTimeout(() => {
+            element.style.transform = 'rotate(0deg)';
+        }, duration);
     }
 }
 
-// Create global animations instance
-const animations = new Animations();
+// Create global animation controller instance
+const animationController = new AnimationController();
