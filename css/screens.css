@@ -647,8 +647,14 @@
     font-weight: 600;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all var(--transition-base);
+    transition: transform var(--transition-base), 
+                border-color var(--transition-base), 
+                box-shadow var(--transition-base);
     overflow: hidden;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
 .answer-btn::before {
@@ -669,13 +675,13 @@
 }
 
 .answer-btn:hover {
-    transform: translateX(8px);
+    transform: translateX(8px) translateZ(0);
     border-color: currentColor;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .answer-btn:active {
-    transform: translateX(4px) scale(0.98);
+    transform: translateX(4px) scale(0.98) translateZ(0);
 }
 
 .answer-icon-circle {
@@ -1030,4 +1036,4 @@
     font-size: var(--font-sm);
     font-weight: 700;
     color: var(--color-primary-light);
-}
+   }
