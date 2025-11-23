@@ -3,7 +3,7 @@
 const CONFIG = {
     // API Configuration
     API: {
-        BASE_URL: 'https://geoai-backend.onrender.com',  // Update this after deploying to Render
+        BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com',  // Update this after deploying to Render
         ENDPOINTS: {
             PREDICT: '/api/predict',
             GET_QUESTION: '/api/question',
