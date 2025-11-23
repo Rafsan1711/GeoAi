@@ -1,5 +1,5 @@
 /* ===================================
-   RESPONSIVE DESIGN
+   RESPONSIVE DESIGN - FIXED
    =================================== */
 
 /* Large Desktops (1440px and up) */
@@ -37,7 +37,7 @@
     
     .container {
         padding: var(--space-lg);
-        padding-bottom: 120px;
+        padding-bottom: 100px;
     }
     
     /* Welcome Screen */
@@ -149,15 +149,22 @@
         gap: var(--space-lg);
     }
     
-    /* Footer */
+    /* Footer - FIXED */
     .app-footer {
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        flex-wrap: wrap;
         padding: var(--space-md);
+        gap: var(--space-md);
     }
     
     .footer-info {
         justify-content: center;
+        width: 100%;
+        order: 1;
+    }
+    
+    .footer-btn {
+        order: 2;
     }
 }
 
@@ -174,7 +181,7 @@
     
     .container {
         padding: var(--space-md);
-        padding-bottom: 140px;
+        padding-bottom: 120px;
     }
     
     /* Welcome Screen */
@@ -300,10 +307,7 @@
     .answer-icon-circle {
         width: 40px;
         height: 40px;
-    }
-    
-    .answer-icon {
-        font-size: var(--font-base);
+        font-size: var(--font-lg);
     }
     
     .answer-hotkey {
@@ -381,14 +385,30 @@
         min-width: auto;
     }
     
-    /* Footer */
+    /* Footer - MOBILE FIX */
     .app-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
         padding: var(--space-sm) var(--space-md);
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-sm);
+        z-index: 1000;
     }
     
     .footer-btn {
-        padding: var(--space-sm) var(--space-md);
-        font-size: var(--font-xs);
+        width: 100%;
+        max-width: 300px;
+        justify-content: center;
+        padding: var(--space-md);
+        font-size: var(--font-sm);
+    }
+    
+    .footer-info {
+        width: 100%;
+        justify-content: center;
     }
     
     .footer-badge {
@@ -407,6 +427,7 @@
     
     .container {
         padding: var(--space-sm);
+        padding-bottom: 140px;
     }
     
     /* Welcome Screen */
@@ -454,6 +475,11 @@
     .result-place-card {
         padding: var(--space-lg);
     }
+    
+    /* Footer */
+    .app-footer {
+        padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom));
+    }
 }
 
 /* Mobile Extra Small (below 375px) */
@@ -489,6 +515,10 @@
     .result-place-name {
         font-size: var(--font-xl);
     }
+    
+    .container {
+        padding-bottom: 160px;
+    }
 }
 
 /* ===================================
@@ -498,6 +528,7 @@
 @media (max-height: 600px) and (orientation: landscape) {
     .container {
         padding: var(--space-sm);
+        padding-bottom: 80px;
     }
     
     .screen-header {
@@ -528,8 +559,8 @@
     }
     
     .app-footer {
-        position: relative;
-        margin-top: var(--space-xl);
+        position: fixed;
+        padding: var(--space-xs) var(--space-md);
     }
 }
 
@@ -630,4 +661,13 @@
     .answer-hotkey {
         display: none !important;
     }
-}
+    
+    /* Increase touch target sizes */
+    .answer-btn {
+        min-height: 56px;
+    }
+    
+    .footer-btn {
+        min-height: 48px;
+    }
+       }
