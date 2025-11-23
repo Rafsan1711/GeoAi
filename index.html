@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoAI - Mind Reading Geography Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Particles Background -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div class="screen active" id="welcomeScreen">
+            <div class="glow-orb"></div>
+            <div class="logo-container">
+                <div class="logo-circle">
+                    <span class="logo-icon">🌍</span>
+                    <div class="logo-ring"></div>
+                    <div class="logo-ring-2"></div>
+                </div>
+                <h1 class="main-title">
+                    <span class="title-geo">Geo</span><span class="title-ai">AI</span>
+                </h1>
+                <p class="subtitle">Think of a place, and I'll read your mind</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">🧠</span>
+                    <h3>AI Powered</h3>
+                    <p>Advanced algorithm</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🎯</span>
+                    <h3>High Accuracy</h3>
+                    <p>Pinpoint precision</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">⚡</span>
+                    <h3>Lightning Fast</h3>
+                    <p>Instant results</p>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="game.showCategoryScreen()">
+                <span>Start Experience</span>
+                <span class="btn-arrow">→</span>
+            </button>
+        </div>
+
+        <!-- Category Selection Screen -->
+        <div class="screen" id="categoryScreen">
+            <div class="screen-header">
+                <h2 class="screen-title">Choose Your Category</h2>
+                <p class="screen-description">Select what type of place you're thinking of</p>
+            </div>
+
+            <div class="category-grid">
+                <div class="category-card" onclick="game.startGame('country')">
+                    <div class="category-icon-wrapper">
+                        <span class="category-icon">🌏</span>
+                    </div>
+                    <h3 class="category-title">Countries</h3>
+                    <p class="category-desc">Nations around the world</p>
+                    <div class="category-overlay">
+                        <span class="overlay-text">Select</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="game.startGame('city')">
+                    <div class="category-icon-wrapper">
+                        <span class="category-icon">🏙️</span>
+                    </div>
+                    <h3 class="category-title">Cities</h3>
+                    <p class="category-desc">Urban metropolises</p>
+                    <div class="category-overlay">
+                        <span class="overlay-text">Select</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="game.startGame('place')">
+                    <div class="category-icon-wrapper">
+                        <span class="category-icon">🏛️</span>
+                    </div>
+                    <h3 class="category-title">Landmarks</h3>
+                    <p class="category-desc">Historic & natural wonders</p>
+                    <div class="category-overlay">
+                        <span class="overlay-text">Select</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-secondary" onclick="game.showWelcomeScreen()">
+                <span>← Back</span>
+            </button>
+        </div>
+
+        <!-- Thinking Screen -->
+        <div class="screen" id="thinkingScreen">
+            <div class="thinking-animation">
+                <div class="thinking-orb">
+                    <div class="orb-core"></div>
+                    <div class="orb-pulse"></div>
+                    <div class="orb-pulse-2"></div>
+                </div>
+            </div>
+            <h2 class="thinking-title">Think of a <span id="thinkingCategory">place</span>...</h2>
+            <p class="thinking-subtitle">Focus your mind on it</p>
+            <div class="thinking-progress">
+                <div class="thinking-bar"></div>
+            </div>
+        </div>
+
+        <!-- Question Screen -->
+        <div class="screen" id="questionScreen">
+            <div class="question-header">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">Question 1 / 15</span>
+                </div>
+                <div class="confidence-display">
+                    <span class="confidence-label">Confidence</span>
+                    <span class="confidence-value" id="confidenceValue">0%</span>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <div class="ai-avatar">
+                    <div class="avatar-glow"></div>
+                    <span class="avatar-icon">🤖</span>
+                </div>
+                <div class="question-bubble">
+                    <p class="question-text" id="questionText">Loading question...</p>
+                </div>
+            </div>
+
+            <div class="answers-container" id="answersContainer">
+                <button class="answer-btn answer-yes" onclick="game.answerQuestion('yes')">
+                    <span class="answer-icon">✓</span>
+                    <span class="answer-text">Yes</span>
+                </button>
+                <button class="answer-btn answer-probably" onclick="game.answerQuestion('probably')">
+                    <span class="answer-icon">↗</span>
+                    <span class="answer-text">Probably</span>
+                </button>
+                <button class="answer-btn answer-dont-know" onclick="game.answerQuestion('dontknow')">
+                    <span class="answer-icon">?</span>
+                    <span class="answer-text">Don't Know</span>
+                </button>
+                <button class="answer-btn answer-probably-not" onclick="game.answerQuestion('probablynot')">
+                    <span class="answer-icon">↘</span>
+                    <span class="answer-text">Probably Not</span>
+                </button>
+                <button class="answer-btn answer-no" onclick="game.answerQuestion('no')">
+                    <span class="answer-icon">✗</span>
+                    <span class="answer-text">No</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div class="screen" id="resultScreen">
+            <div class="result-animation">
+                <div class="result-burst"></div>
+                <div class="result-circle"></div>
+            </div>
+
+            <div class="result-content">
+                <h2 class="result-title">I Know!</h2>
+                <div class="result-emoji" id="resultEmoji">🎯</div>
+                <h3 class="result-name" id="resultName">The Taj Mahal</h3>
+                <div class="result-confidence">
+                    <div class="confidence-circle">
+                        <svg class="confidence-svg" viewBox="0 0 100 100">
+                            <circle class="confidence-bg" cx="50" cy="50" r="45"></circle>
+                            <circle class="confidence-progress" id="confidenceCircle" cx="50" cy="50" r="45"></circle>
+                        </svg>
+                        <div class="confidence-percentage" id="finalConfidence">95%</div>
+                    </div>
+                    <p class="confidence-label-result">Confidence Level</p>
+                </div>
+
+                <div class="result-info" id="resultInfo">
+                    <p>Loading information...</p>
+                </div>
+
+                <div class="result-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="questionsAsked">10</span>
+                        <span class="stat-label">Questions</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="possibleMatches">1</span>
+                        <span class="stat-label">Matches</span>
+                    </div>
+                </div>
+
+                <div class="result-actions">
+                    <button class="btn-primary" onclick="game.playAgain()">
+                        <span>Play Again</span>
+                        <span class="btn-arrow">↻</span>
+                    </button>
+                    <button class="btn-secondary" onclick="game.showCategoryScreen()">
+                        <span>Change Category</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engine Info Screen (Hidden by default, accessible via footer) -->
+        <div class="screen" id="engineScreen">
+            <div class="screen-header">
+                <h2 class="screen-title">🧠 AI Engine</h2>
+                <p class="screen-description">How GeoAI reads your mind</p>
+            </div>
+
+            <div class="engine-info">
+                <div class="engine-card">
+                    <h3>🎯 Information Gain Algorithm</h3>
+                    <p>Uses entropy-based calculations to select the most informative questions, splitting the possibility space efficiently.</p>
+                </div>
+
+                <div class="engine-card">
+                    <h3>🔍 Bayesian Inference</h3>
+                    <p>Updates probabilities based on your answers using weighted confidence scores for each response type.</p>
+                </div>
+
+                <div class="engine-card">
+                    <h3>🌳 Decision Tree Optimization</h3>
+                    <p>Dynamically builds an optimal decision path to narrow down possibilities in minimum questions.</p>
+                </div>
+
+                <div class="engine-card">
+                    <h3>📊 Answer Weights</h3>
+                    <ul class="weight-list">
+                        <li><strong>Yes:</strong> 1.0 (100% match)</li>
+                        <li><strong>Probably:</strong> 0.75 (75% match)</li>
+                        <li><strong>Don't Know:</strong> 0.5 (neutral)</li>
+                        <li><strong>Probably Not:</strong> 0.25 (25% match)</li>
+                        <li><strong>No:</strong> 0.0 (0% match)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <button class="btn-secondary" onclick="game.closeEngineScreen()">
+                <span>← Back</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <button class="footer-btn" onclick="game.showEngineScreen()">
+            <span>⚙️</span>
+            <span>Engine Info</span>
+        </button>
+        <div class="footer-text">
+            Powered by Advanced AI Algorithm
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/dataset.js"></script>
+    <script src="js/questions.js"></script>
+    <script src="js/algorithm.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/animations.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
