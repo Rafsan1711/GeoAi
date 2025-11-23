@@ -1,0 +1,41 @@
+{
+  "name": "geoai-game",
+  "version": "2.0.0",
+  "description": "An AI-powered geography guessing game that reads your mind",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "npx http-server -p 8000 -o",
+    "dev": "npx live-server --port=8000 --open=/index.html",
+    "build": "echo 'No build step needed for static site'",
+    "lint": "echo 'Linting not configured'",
+    "format": "echo 'Formatting not configured'"
+  },
+  "keywords": [
+    "game",
+    "geography",
+    "ai",
+    "machine-learning",
+    "web-app",
+    "javascript",
+    "educational"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/geoai-game.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/geoai-game/issues"
+  },
+  "homepage": "https://yourusername.github.io/geoai-game"
+}
