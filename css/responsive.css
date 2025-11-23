@@ -1,0 +1,633 @@
+/* ===================================
+   RESPONSIVE DESIGN
+   =================================== */
+
+/* Large Desktops (1440px and up) */
+@media (min-width: 1440px) {
+    :root {
+        --font-6xl: 4.5rem;
+        --font-5xl: 3.5rem;
+        --font-4xl: 2.75rem;
+    }
+    
+    .container {
+        padding: var(--space-3xl);
+    }
+}
+
+/* Desktop (1024px - 1439px) */
+@media (max-width: 1439px) {
+    .feature-showcase {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    
+    .category-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+    :root {
+        --font-6xl: 3rem;
+        --font-5xl: 2.5rem;
+        --font-4xl: 2rem;
+        --font-3xl: 1.75rem;
+    }
+    
+    .container {
+        padding: var(--space-lg);
+        padding-bottom: 120px;
+    }
+    
+    /* Welcome Screen */
+    .brand-title {
+        font-size: var(--font-5xl);
+    }
+    
+    .brand-tagline {
+        font-size: var(--font-lg);
+    }
+    
+    .feature-showcase {
+        grid-template-columns: 1fr;
+        gap: var(--space-lg);
+    }
+    
+    .logo-circle {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .logo-icon {
+        font-size: 3.5rem;
+    }
+    
+    /* Category Screen */
+    .category-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-lg);
+    }
+    
+    .category-icon-box {
+        width: 90px;
+        height: 90px;
+    }
+    
+    .category-emoji {
+        font-size: 2.5rem;
+    }
+    
+    /* Question Screen */
+    .question-header {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+    
+    .confidence-section {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    
+    .confidence-indicator {
+        display: none;
+    }
+    
+    .question-display {
+        flex-direction: column;
+    }
+    
+    .ai-avatar-section {
+        flex-direction: row;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .question-bubble {
+        border-top-left-radius: var(--radius-2xl);
+    }
+    
+    .question-text {
+        font-size: var(--font-lg);
+    }
+    
+    .answer-btn {
+        padding: var(--space-md) var(--space-lg);
+    }
+    
+    .answer-icon-circle {
+        width: 45px;
+        height: 45px;
+    }
+    
+    /* Result Screen */
+    .result-stats-grid {
+        flex-direction: column;
+        gap: var(--space-lg);
+    }
+    
+    .stat-divider {
+        width: 100px;
+        height: 2px;
+    }
+    
+    .result-emoji-large {
+        font-size: 4rem;
+    }
+    
+    .result-place-name {
+        font-size: var(--font-3xl);
+    }
+    
+    .confidence-circle-wrapper {
+        width: 140px;
+        height: 140px;
+    }
+    
+    /* Engine Screen */
+    .engine-cards-grid {
+        gap: var(--space-lg);
+    }
+    
+    /* Footer */
+    .app-footer {
+        flex-direction: column;
+        align-items: stretch;
+        padding: var(--space-md);
+    }
+    
+    .footer-info {
+        justify-content: center;
+    }
+}
+
+/* Mobile Large (640px - 767px) */
+@media (max-width: 767px) {
+    :root {
+        --font-6xl: 2.5rem;
+        --font-5xl: 2rem;
+        --font-4xl: 1.75rem;
+        --font-3xl: 1.5rem;
+        --font-2xl: 1.25rem;
+        --font-xl: 1.125rem;
+    }
+    
+    .container {
+        padding: var(--space-md);
+        padding-bottom: 140px;
+    }
+    
+    /* Welcome Screen */
+    .brand-title {
+        font-size: 3rem;
+    }
+    
+    .brand-stats {
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+    
+    .stat-badge {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .feature-card {
+        padding: var(--space-xl);
+    }
+    
+    .feature-icon-wrapper {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .feature-icon {
+        font-size: 2rem;
+    }
+    
+    /* Buttons */
+    .btn-hero {
+        padding: 1rem 2rem;
+        font-size: var(--font-lg);
+    }
+    
+    .btn-large {
+        padding: var(--space-md) var(--space-xl);
+        font-size: var(--font-base);
+    }
+    
+    /* Category Screen */
+    .screen-title {
+        font-size: var(--font-3xl);
+    }
+    
+    .screen-subtitle {
+        font-size: var(--font-base);
+    }
+    
+    .category-card {
+        padding: var(--space-xl);
+    }
+    
+    .category-name {
+        font-size: var(--font-xl);
+    }
+    
+    /* Thinking Screen */
+    .mind-reader-animation {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .brain-core {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .brain-icon {
+        font-size: 2.5rem;
+    }
+    
+    .thinking-title {
+        font-size: var(--font-2xl);
+    }
+    
+    .thinking-subtitle {
+        font-size: var(--font-base);
+    }
+    
+    .thinking-tips {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+    
+    .tip-item {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Question Screen */
+    .progress-section,
+    .confidence-section {
+        padding: var(--space-md);
+    }
+    
+    .avatar-container {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .avatar-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+    
+    .question-bubble {
+        padding: var(--space-lg);
+    }
+    
+    .question-text {
+        font-size: var(--font-base);
+    }
+    
+    .answer-btn {
+        font-size: var(--font-base);
+        padding: var(--space-md);
+        gap: var(--space-md);
+    }
+    
+    .answer-icon-circle {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .answer-icon {
+        font-size: var(--font-base);
+    }
+    
+    .answer-hotkey {
+        display: none;
+    }
+    
+    /* Result Screen */
+    .result-celebration {
+        height: 150px;
+    }
+    
+    .celebration-burst,
+    .celebration-ring {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .result-announcement {
+        font-size: var(--font-2xl);
+    }
+    
+    .result-place-card {
+        padding: var(--space-2xl);
+    }
+    
+    .result-emoji-large {
+        font-size: 3rem;
+    }
+    
+    .result-place-name {
+        font-size: var(--font-2xl);
+    }
+    
+    .confidence-circle-wrapper {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .confidence-number {
+        font-size: var(--font-4xl);
+    }
+    
+    .confidence-symbol {
+        font-size: var(--font-xl);
+    }
+    
+    .stat-box {
+        padding: var(--space-lg);
+    }
+    
+    .stat-value {
+        font-size: var(--font-3xl);
+    }
+    
+    .result-actions {
+        gap: var(--space-sm);
+    }
+    
+    /* Engine Screen */
+    .engine-card {
+        padding: var(--space-lg);
+    }
+    
+    .engine-card-title {
+        font-size: var(--font-lg);
+    }
+    
+    .weight-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-sm);
+    }
+    
+    .weight-label {
+        min-width: auto;
+    }
+    
+    /* Footer */
+    .app-footer {
+        padding: var(--space-sm) var(--space-md);
+    }
+    
+    .footer-btn {
+        padding: var(--space-sm) var(--space-md);
+        font-size: var(--font-xs);
+    }
+    
+    .footer-badge {
+        font-size: 0.7rem;
+        padding: var(--space-xs) var(--space-sm);
+    }
+}
+
+/* Mobile Small (below 640px) */
+@media (max-width: 639px) {
+    :root {
+        --space-3xl: 2.5rem;
+        --space-2xl: 2rem;
+        --space-xl: 1.25rem;
+    }
+    
+    .container {
+        padding: var(--space-sm);
+    }
+    
+    /* Welcome Screen */
+    .logo-circle {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .logo-icon {
+        font-size: 3rem;
+    }
+    
+    .brand-title {
+        font-size: 2.5rem;
+    }
+    
+    .brand-tagline {
+        font-size: var(--font-base);
+    }
+    
+    /* Category Screen */
+    .category-icon-box {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .category-emoji {
+        font-size: 2rem;
+    }
+    
+    /* Question Screen */
+    .question-wrapper {
+        max-width: 100%;
+    }
+    
+    .question-display {
+        gap: var(--space-md);
+    }
+    
+    .answers-grid {
+        gap: var(--space-sm);
+    }
+    
+    /* Result Screen */
+    .result-place-card {
+        padding: var(--space-lg);
+    }
+}
+
+/* Mobile Extra Small (below 375px) */
+@media (max-width: 374px) {
+    :root {
+        --font-base: 0.875rem;
+        --font-sm: 0.8rem;
+        --font-xs: 0.7rem;
+    }
+    
+    .brand-title {
+        font-size: 2rem;
+    }
+    
+    .btn-hero {
+        padding: 0.875rem 1.5rem;
+        font-size: var(--font-base);
+    }
+    
+    .category-name {
+        font-size: var(--font-lg);
+    }
+    
+    .question-text {
+        font-size: var(--font-sm);
+    }
+    
+    .answer-btn {
+        padding: var(--space-sm);
+        font-size: var(--font-sm);
+    }
+    
+    .result-place-name {
+        font-size: var(--font-xl);
+    }
+}
+
+/* ===================================
+   LANDSCAPE MOBILE
+   =================================== */
+
+@media (max-height: 600px) and (orientation: landscape) {
+    .container {
+        padding: var(--space-sm);
+    }
+    
+    .screen-header {
+        margin-bottom: var(--space-xl);
+    }
+    
+    .thinking-wrapper {
+        padding: var(--space-lg) 0;
+    }
+    
+    .mind-reader-animation {
+        width: 120px;
+        height: 120px;
+        margin-bottom: var(--space-xl);
+    }
+    
+    .thinking-title,
+    .thinking-subtitle {
+        margin-bottom: var(--space-sm);
+    }
+    
+    .thinking-tips {
+        display: none;
+    }
+    
+    .result-celebration {
+        height: 100px;
+    }
+    
+    .app-footer {
+        position: relative;
+        margin-top: var(--space-xl);
+    }
+}
+
+/* ===================================
+   PRINT STYLES
+   =================================== */
+
+@media print {
+    .app-footer,
+    .btn,
+    .answer-btn {
+        display: none;
+    }
+    
+    .container {
+        padding: 0;
+    }
+    
+    .bg-effects {
+        display: none;
+    }
+    
+    * {
+        background: white !important;
+        color: black !important;
+    }
+}
+
+/* ===================================
+   REDUCED MOTION
+   =================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .logo-ring,
+    .gradient-orb,
+    .brain-wave {
+        animation: none !important;
+    }
+}
+
+/* ===================================
+   HIGH CONTRAST MODE
+   =================================== */
+
+@media (prefers-contrast: high) {
+    :root {
+        --border-color: rgba(255, 255, 255, 0.3);
+        --border-hover: rgba(255, 255, 255, 0.5);
+    }
+    
+    .btn-primary,
+    .category-card,
+    .answer-btn {
+        border: 2px solid white;
+    }
+}
+
+/* ===================================
+   DARK MODE (if system preference)
+   =================================== */
+
+@media (prefers-color-scheme: dark) {
+    /* Already dark by default, but can add overrides here */
+}
+
+/* ===================================
+   TOUCH DEVICE OPTIMIZATIONS
+   =================================== */
+
+@media (hover: none) and (pointer: coarse) {
+    .btn,
+    .answer-btn,
+    .category-card,
+    .feature-card {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .btn:hover,
+    .answer-btn:hover,
+    .category-card:hover,
+    .feature-card:hover {
+        transform: none;
+    }
+    
+    .btn:active,
+    .answer-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .answer-hotkey {
+        display: none !important;
+    }
+}
