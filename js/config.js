@@ -3,15 +3,17 @@
 const CONFIG = {
     // API Configuration
     API: {
-        BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com',  // Update this after deploying to Render
+        // Update this URL after deploying to Render.com
+        BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com',  // Change this!
         ENDPOINTS: {
             PREDICT: '/api/predict',
             GET_QUESTION: '/api/question',
             FILTER: '/api/filter',
             DATA: '/api/data',
-            STATS: '/api/stats'
+            STATS: '/api/stats',
+            LOAD_DATA: '/api/load-data'
         },
-        TIMEOUT: 10000, // 10 seconds
+        TIMEOUT: 15000, // 15 seconds
         RETRY_ATTEMPTS: 3
     },
 
@@ -47,24 +49,24 @@ const CONFIG = {
         PARTICLE_COUNT: 30,
         CONFETTI_COUNT: 50,
         ENABLE_ANIMATIONS: true,
-        ENABLE_SOUND: false, // Can be enabled later
+        ENABLE_SOUND: false,
         THEME: 'dark'
     },
 
     // Debug Configuration
     DEBUG: {
         ENABLED: false,
-        LOG_API_CALLS: false,
+        LOG_API_CALLS: true,
         LOG_STATE_CHANGES: false,
         SHOW_PROBABILITY_SCORES: false
     },
 
     // Feature Flags
     FEATURES: {
-        USE_PYTHON_API: false, // Set to true when Python API is ready
-        USE_LOCAL_ALGORITHM: true, // Use local JS algorithm for now
-        ENABLE_MULTIPLAYER: false, // Future feature
-        ENABLE_LEADERBOARD: false // Future feature
+        USE_PYTHON_API: true, // ✅ Enable Python backend
+        USE_LOCAL_ALGORITHM: true, // Fallback if API fails
+        ENABLE_MULTIPLAYER: false,
+        ENABLE_LEADERBOARD: false
     },
 
     // Performance
@@ -77,11 +79,11 @@ const CONFIG = {
     // Localization
     LOCALE: {
         DEFAULT: 'en',
-        AVAILABLE: ['en', 'bn'], // English, Bengali
+        AVAILABLE: ['en', 'bn'],
         DATE_FORMAT: 'YYYY-MM-DD'
     },
 
-    // Analytics (Optional)
+    // Analytics
     ANALYTICS: {
         ENABLED: false,
         TRACK_GAMEPLAY: true,
@@ -99,6 +101,11 @@ function validateConfig() {
         console.warn('MIN_CONFIDENCE_TO_GUESS should be between 50 and 99');
     }
     
+    // Check if BASE_URL is configured
+    if (CONFIG.API.BASE_URL.includes('your-backend-url')) {
+        console.warn('⚠️  Please update API.BASE_URL in config.js with your Render.com backend URL!');
+    }
+    
     return true;
 }
 
@@ -108,4 +115,4 @@ validateConfig();
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = CONFIG;
-}
+        }
