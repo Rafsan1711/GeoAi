@@ -10,6 +10,31 @@ class APIHandler {
             cities: null,
             places: null
         };
+        this.backendHealthy = false;
+        this.dataLoadedToBackend = false;
+    }
+
+    /**
+     * Check if backend is healthy
+     */
+    async checkBackendHealth() {
+        try {
+            const response = await fetch(`${this.baseURL}/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.backendHealthy = true;
+                console.log('✅ Backend is healthy:', data);
+                return true;
+            }
+        } catch (error) {
+            console.warn('⚠️  Backend not available, using local algorithm');
+            this.backendHealthy = false;
+        }
+        return false;
     }
 
     /**
@@ -52,15 +77,65 @@ class APIHandler {
                 places: places.length
             });
 
+            // Check backend health
+            if (CONFIG.FEATURES.USE_PYTHON_API) {
+                await this.checkBackendHealth();
+                
+                // Load data to backend if healthy
+                if (this.backendHealthy) {
+                    await this.loadDataToBackend();
+                }
+            }
+
             return this.dataCache;
         } catch (error) {
             console.error('Error loading game data:', error);
-            // Return fallback empty data
             return {
                 country: [],
                 city: [],
                 place: []
             };
+        }
+    }
+
+    /**
+     * Load data and questions to backend
+     */
+    async loadDataToBackend() {
+        if (this.dataLoadedToBackend) return;
+        
+        try {
+            console.log('📤 Loading data to backend...');
+            
+            // Load questions
+            const questionBanks = {
+                country: game.questionBank.country || [],
+                city: game.questionBank.city || [],
+                place: game.questionBank.place || []
+            };
+            
+            // Send data for each category
+            for (const [category, items] of Object.entries(this.dataCache)) {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.LOAD_DATA,
+                    'POST',
+                    {
+                        category: category,
+                        items: items,
+                        questions: questionBanks[category]
+                    }
+                );
+                
+                if (response) {
+                    console.log(`✅ Loaded ${category} data to backend`);
+                }
+            }
+            
+            this.dataLoadedToBackend = true;
+            console.log('✅ All data loaded to backend successfully');
+            
+        } catch (error) {
+            console.error('Error loading data to backend:', error);
         }
     }
 
@@ -98,6 +173,10 @@ class APIHandler {
         }
 
         try {
+            if (CONFIG.DEBUG.LOG_API_CALLS) {
+                console.log(`🔵 API Request: ${method} ${endpoint}`, data);
+            }
+
             const response = await fetch(url, options);
             
             if (!response.ok) {
@@ -105,6 +184,10 @@ class APIHandler {
             }
 
             const result = await response.json();
+
+            if (CONFIG.DEBUG.LOG_API_CALLS) {
+                console.log(`🟢 API Response:`, result);
+            }
 
             // Cache successful GET requests
             if (method === 'GET' && CONFIG.PERFORMANCE.CACHE_API_RESPONSES) {
@@ -114,62 +197,150 @@ class APIHandler {
             return result;
         } catch (error) {
             if (error.name === 'TimeoutError') {
-                console.error('Request timeout:', endpoint);
+                console.error('⏱️  Request timeout:', endpoint);
+            } else if (error.name === 'AbortError') {
+                console.error('🚫 Request aborted:', endpoint);
             } else {
-                console.error('API request failed:', error);
+                console.error('❌ API request failed:', error);
             }
             throw error;
         }
     }
 
     /**
-     * Get next question from Python API
+     * Get next question from Python API with fallback
      */
-    async getNextQuestion(category, answers, possibleItems) {
-        if (!CONFIG.FEATURES.USE_PYTHON_API) {
-            // Use local algorithm
-            return null;
-        }
+    async getNextQuestion(category, askedQuestions, possibleItems) {
+        // Try Python API first if enabled and healthy
+        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy) {
+            try {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.GET_QUESTION,
+                    'POST',
+                    {
+                        category: category,
+                        asked_questions: askedQuestions,
+                        items: possibleItems
+                    }
+                );
 
-        try {
-            const response = await this.makeRequest(
-                CONFIG.API.ENDPOINTS.GET_QUESTION,
-                'POST',
-                {
-                    category,
-                    answers,
-                    possibleItems: possibleItems.map(item => item.id)
+                if (response && response.question) {
+                    console.log('🤖 Using backend AI question');
+                    return response.question;
                 }
-            );
-
-            return response.question;
-        } catch (error) {
-            console.error('Error getting question from API:', error);
-            return null;
+            } catch (error) {
+                console.warn('Backend question failed, using local algorithm');
+                this.backendHealthy = false;
+            }
         }
+
+        // Fallback to local algorithm
+        if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
+            console.log('💻 Using local algorithm question');
+            const questions = game.questionBank[category] || [];
+            return localAlgorithm.selectBestQuestion(
+                questions,
+                askedQuestions,
+                possibleItems
+            );
+        }
+
+        return null;
     }
 
     /**
-     * Get prediction from Python API
+     * Filter items using Python API with fallback
      */
-    async getPrediction(category, answers) {
-        if (!CONFIG.FEATURES.USE_PYTHON_API) {
-            return null;
+    async filterItems(possibleItems, question, answer) {
+        // Try Python API first if enabled and healthy
+        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy) {
+            try {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.FILTER,
+                    'POST',
+                    {
+                        items: possibleItems,
+                        question: question,
+                        answer: answer
+                    }
+                );
+
+                if (response && response.items) {
+                    console.log('🤖 Using backend filtering');
+                    return response.items;
+                }
+            } catch (error) {
+                console.warn('Backend filtering failed, using local algorithm');
+                this.backendHealthy = false;
+            }
         }
 
-        try {
-            const response = await this.makeRequest(
-                CONFIG.API.ENDPOINTS.PREDICT,
-                'POST',
-                {
-                    category,
-                    answers
-                }
+        // Fallback to local algorithm
+        if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
+            console.log('💻 Using local algorithm filtering');
+            return localAlgorithm.filterItems(
+                possibleItems,
+                question,
+                answer
             );
+        }
 
-            return response;
+        return possibleItems;
+    }
+
+    /**
+     * Get prediction from Python API with fallback
+     */
+    async getPrediction(possibleItems, questionsAsked) {
+        // Try Python API first if enabled and healthy
+        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy) {
+            try {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.PREDICT,
+                    'POST',
+                    {
+                        items: possibleItems,
+                        questions_asked: questionsAsked
+                    }
+                );
+
+                if (response) {
+                    console.log('🤖 Using backend prediction');
+                    return response;
+                }
+            } catch (error) {
+                console.warn('Backend prediction failed, using local algorithm');
+                this.backendHealthy = false;
+            }
+        }
+
+        // Fallback to local algorithm
+        if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
+            console.log('💻 Using local algorithm prediction');
+            return {
+                prediction: localAlgorithm.getBestGuess(possibleItems),
+                confidence: localAlgorithm.calculateConfidence(possibleItems),
+                should_stop: localAlgorithm.shouldStopAsking(
+                    possibleItems,
+                    questionsAsked,
+                    CONFIG.GAME.MAX_QUESTIONS
+                )
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Get statistics from backend
+     */
+    async getStats() {
+        if (!this.backendHealthy) return null;
+        
+        try {
+            return await this.makeRequest(CONFIG.API.ENDPOINTS.STATS);
         } catch (error) {
-            console.error('Error getting prediction from API:', error);
+            console.error('Error getting stats:', error);
             return null;
         }
     }
@@ -179,6 +350,7 @@ class APIHandler {
      */
     clearCache() {
         this.cache.clear();
+        console.log('🗑️  Cache cleared');
     }
 
     /**
@@ -187,8 +359,24 @@ class APIHandler {
     getCacheStats() {
         return {
             size: this.cache.size,
-            keys: Array.from(this.cache.keys())
+            keys: Array.from(this.cache.keys()),
+            backendHealthy: this.backendHealthy,
+            dataLoadedToBackend: this.dataLoadedToBackend
         };
+    }
+
+    /**
+     * Retry backend connection
+     */
+    async retryBackendConnection() {
+        console.log('🔄 Retrying backend connection...');
+        const healthy = await this.checkBackendHealth();
+        
+        if (healthy && !this.dataLoadedToBackend) {
+            await this.loadDataToBackend();
+        }
+        
+        return healthy;
     }
 }
 
@@ -218,7 +406,6 @@ class LocalAlgorithm {
         const total = yesCount + noCount;
         if (total === 0) return 0;
 
-        // Calculate entropy - prefer questions that split evenly
         const yesRatio = yesCount / total;
         const noRatio = noCount / total;
         const balance = Math.min(yesRatio, noRatio);
@@ -260,15 +447,15 @@ class LocalAlgorithm {
             let probability = item.probability || 1.0;
             
             if (answer === 'yes') {
-                probability = matches ? probability * 1.2 : probability * 0.1;
+                probability = matches ? probability * 1.5 : probability * 0.05;
             } else if (answer === 'probably') {
-                probability = matches ? probability * 1.1 : probability * 0.4;
+                probability = matches ? probability * 1.2 : probability * 0.3;
             } else if (answer === 'dontknow') {
-                probability = probability * 0.9;
+                probability = probability * 0.85;
             } else if (answer === 'probablynot') {
-                probability = matches ? probability * 0.4 : probability * 1.1;
+                probability = matches ? probability * 0.3 : probability * 1.2;
             } else if (answer === 'no') {
-                probability = matches ? probability * 0.1 : probability * 1.2;
+                probability = matches ? probability * 0.05 : probability * 1.5;
             }
 
             return {
@@ -284,7 +471,6 @@ class LocalAlgorithm {
     filterItems(possibleItems, question, answer) {
         let items = this.updateProbabilities(possibleItems, question, answer);
 
-        // Aggressive filtering for definite answers
         if (answer === 'yes') {
             items = items.filter(item => 
                 item[question.attribute] === question.value || item.probability > 0.15
@@ -295,7 +481,6 @@ class LocalAlgorithm {
             );
         }
 
-        // Sort by probability
         items.sort((a, b) => (b.probability || 1) - (a.probability || 1));
 
         return items;
