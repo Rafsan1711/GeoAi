@@ -1,337 +1,364 @@
+"""
+GeoAI Backend - Advanced AI Engine
+Flask API with sophisticated algorithms
+"""
+
 import os
-import json
-import math
 import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from collections import defaultdict
 
-# কনফিগারেশন এবং লগিং সেটআপ
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Import core components
+from core.inference_engine import InferenceEngine
+from utils.data_loader import DataLoader
+from utils.logger import setup_logger
 
+# Setup logging
+logger = setup_logger('geoai', level='INFO')
+
+# Initialize Flask app
 app = Flask(__name__)
 CORS(app)
 
-# ---------------------------------------------------------
-# CONSTANTS & CONFIGURATIONS
-# ---------------------------------------------------------
-
-# কোন অ্যাট্রিবিউটগুলো প্রশ্ন করার জন্য উপযুক্ত এবং তাদের গুরুত্ব (Weight)
-ATTRIBUTE_CONFIG = {
-    'continent': {'weight': 1.0, 'type': 'categorical', 'text': 'Is it located in {}?'},
-    'region': {'weight': 0.9, 'type': 'categorical', 'text': 'Is it in the {} region?'},
-    'landlocked': {'weight': 0.8, 'type': 'boolean', 'text': 'Is it a landlocked country?'},
-    'hasCoast': {'weight': 0.8, 'type': 'boolean', 'text': 'Does it have a coastline?'},
-    'isIsland': {'weight': 0.9, 'type': 'boolean', 'text': 'Is it an island nation?'},
-    'hasMountains': {'weight': 0.6, 'type': 'boolean', 'text': 'Is it known for having mountains?'},
-    'driveSide': {'weight': 0.7, 'type': 'categorical', 'text': 'Do cars drive on the {}?'},
-    'government': {'weight': 0.6, 'type': 'categorical', 'text': 'Is the government a {}?'},
-    'mainReligion': {'weight': 0.5, 'type': 'categorical', 'text': 'Is the main religion {}?'},
-    'climate': {'weight': 0.7, 'type': 'categorical', 'text': 'Is the climate primarily {}?'},
-    'population': {'weight': 0.7, 'type': 'categorical', 'text': 'Does it have a {} population?'},
-    'flagColors': {'weight': 0.6, 'type': 'list', 'text': 'Does the flag contain the color {}?'},
-    'famousFor': {'weight': 0.5, 'type': 'categorical', 'text': 'Is it famous for {}?'}
-}
-
-# উত্তরের ওজনের ম্যাট্রিক্স (Probabilistic Logic এর জন্য)
-ANSWER_WEIGHTS = {
-    'yes': {'match': 2.5, 'mismatch': 0.05},        # হ্যা বললে ম্যাচিং আইটেমের স্কোর অনেক বাড়বে
-    'probably': {'match': 1.5, 'mismatch': 0.4},
-    'dontknow': {'match': 1.0, 'mismatch': 1.0},    # জানি না বললে কোনো পরিবর্তন হবে না
-    'probablynot': {'match': 0.4, 'mismatch': 1.5},
-    'no': {'match': 0.05, 'mismatch': 2.5}          # না বললে ম্যাচিং আইটেমের স্কোর অনেক কমবে
-}
-
-# ---------------------------------------------------------
-# CORE AI ENGINE CLASSES
-# ---------------------------------------------------------
-
-class QuestionGenerator:
-    """
-    ডেটা থেকে হিউম্যান-রিডেবল প্রশ্ন তৈরি করার ক্লাস
-    """
-    @staticmethod
-    def generate_question_text(attribute, value):
-        config = ATTRIBUTE_CONFIG.get(attribute)
-        if not config:
-            return f"Is {attribute} {value}?"
-        
-        template = config['text']
-        
-        # ফরম্যাটিং সুন্দর করার জন্য কিছু লজিক
-        if attribute == 'continent':
-            # উত্তর আমেরিকা/দক্ষিণ আমেরিকার স্পেস ঠিক করা
-            val_str = str(value).replace('northamerica', 'North America').replace('southamerica', 'South America').title()
-            return template.format(val_str)
-        
-        if attribute == 'driveSide':
-            return template.format(value + " side")
-            
-        if isinstance(value, str):
-            return template.format(value.capitalize())
-            
-        return template.format(value)
-
-class InferenceEngine:
-    """
-    Bayesian Inference এবং Entropy ক্যালকুলেশন হ্যান্ডেল করে
-    """
-    
-    def calculate_entropy(self, items):
-        """Shannon Entropy ক্যালকুলেট করে (Data Purity মাপার জন্য)"""
-        if not items:
-            return 0
-        
-        total = len(items)
-        probability_mass = sum(item.get('probability', 1.0) for item in items)
-        
-        if probability_mass == 0:
-            return 0
-            
-        entropy = 0
-        for item in items:
-            prob = item.get('probability', 1.0) / probability_mass
-            if prob > 0:
-                entropy -= prob * math.log2(prob)
-                
-        return entropy
-
-    def get_best_question(self, items, asked_attributes):
-        """
-        Information Gain (Entropy) ব্যবহার করে সেরা প্রশ্ন খুঁজে বের করে।
-        এটি প্রতিটি অ্যাট্রিবিউট চেক করে দেখে কোন প্রশ্ন করলে ডেটা সবথেকে ভালো ভাগ হবে।
-        """
-        best_question = None
-        max_info_gain = -1
-        
-        total_mass = sum(item.get('probability', 1.0) for item in items)
-        
-        # সব অ্যাট্রিবিউট চেক করা
-        for attr, config in ATTRIBUTE_CONFIG.items():
-            # ইউনিক ভ্যালুগুলো বের করা
-            unique_values = set()
-            for item in items:
-                val = item.get(attr)
-                if isinstance(val, list):
-                    for v in val:
-                        unique_values.add(v)
-                elif val is not None:
-                    unique_values.add(val)
-            
-            # প্রতিটি ভ্যালুর জন্য Information Gain হিসাব করা
-            for val in unique_values:
-                # যদি এই প্রশ্ন আগে করা হয়ে থাকে তবে স্কিপ
-                question_id = f"{attr}:{val}"
-                if question_id in asked_attributes:
-                    continue
-
-                # আইটেমগুলো ভাগ করা (Matching vs Non-Matching)
-                match_mass = 0
-                non_match_mass = 0
-                
-                for item in items:
-                    prob = item.get('probability', 1.0)
-                    item_val = item.get(attr)
-                    
-                    is_match = False
-                    if isinstance(item_val, list):
-                        is_match = val in item_val
-                    else:
-                        is_match = item_val == val
-                        
-                    if is_match:
-                        match_mass += prob
-                    else:
-                        non_match_mass += prob
-                
-                # যদি কোনো প্রশ্ন সবাইকে একদিকে নিয়ে যায়, তবে সেটা ভালো প্রশ্ন না
-                if match_mass == 0 or non_match_mass == 0:
-                    continue
-
-                # Entropy Calculation
-                p_match = match_mass / total_mass
-                p_non_match = non_match_mass / total_mass
-                
-                # Balance Factor (আমরা চাই প্রশ্নটি যেন ৫০-৫০ ভাগে ভাগ করে)
-                balance = 1.0 - abs(p_match - p_non_match)
-                
-                # Weighted Score
-                info_gain = balance * config['weight']
-                
-                if info_gain > max_info_gain:
-                    max_info_gain = info_gain
-                    best_question = {
-                        'attribute': attr,
-                        'value': val,
-                        'question': QuestionGenerator.generate_question_text(attr, val),
-                        'id': question_id
-                    }
-                    
-        return best_question
-
-    def update_probabilities(self, items, question, answer):
-        """
-        ইউজারের উত্তরের ওপর ভিত্তি করে প্রতিটি আইটেমের Probability আপডেট করে।
-        এটি 'Soft Filtering' করে, অর্থাৎ ভুল উত্তরে কাউকে পুরোপুরি বাদ দেয় না।
-        """
-        attr = question['attribute']
-        val = question['value']
-        weights = ANSWER_WEIGHTS.get(answer, ANSWER_WEIGHTS['dontknow'])
-        
-        updated_items = []
-        
-        for item in items:
-            item_val = item.get(attr)
-            current_prob = item.get('probability', 1.0)
-            
-            # চেক করি ম্যাচ করে কি না
-            is_match = False
-            if isinstance(item_val, list):
-                is_match = val in item_val
-            else:
-                is_match = item_val == val
-            
-            # Bayesian Update
-            if is_match:
-                new_prob = current_prob * weights['match']
-            else:
-                new_prob = current_prob * weights['mismatch']
-            
-            # Probability বাউন্ডারি চেক (০ বা অসীম হওয়া রোধ করতে)
-            new_prob = max(1e-10, min(new_prob, 1000.0))
-            
-            item['probability'] = new_prob
-            updated_items.append(item)
-            
-        # নরমালাইজেশন (যাতে সব মিলিয়ে ১০০% এর মতো থাকে, ক্যালকুলেশনের সুবিধার জন্য)
-        total_prob = sum(i['probability'] for i in updated_items)
-        if total_prob > 0:
-            for item in updated_items:
-                item['probability'] = (item['probability'] / total_prob) * 100.0
-                
-        # Probability অনুযায়ী সর্ট করা
-        updated_items.sort(key=lambda x: x['probability'], reverse=True)
-        
-        return updated_items
-
-# গ্লোবাল ইনস্ট্যান্স
+# Global instances
+data_loader = DataLoader(data_dir='data')
 inference_engine = InferenceEngine()
 
-# ---------------------------------------------------------
-# FLASK ROUTES
-# ---------------------------------------------------------
+# In-memory storage for active games (by session ID)
+active_games = {}
 
-@app.route('/api/question', methods=['POST'])
-def get_next_question():
-    try:
-        data = request.json
-        items = data.get('items', [])
-        asked_questions = set(data.get('asked_questions', [])) # এখানে আমরা ID লিস্ট আশা করছি
-        
-        # আইটেম না থাকলে এরর
-        if not items:
-            return jsonify({'error': 'No items provided'}), 400
-            
-        # ১. যদি মাত্র ১টি আইটেম বাকি থাকে এবং কনফিডেন্স হাই হয়
-        top_item = items[0]
-        confidence = top_item.get('probability', 0)
-        
-        # যদি কনফিডেন্স ৮০% এর বেশি হয় অথবা আইটেম সংখ্যা খুব কমে যায়
-        remaining_count = sum(1 for i in items if i.get('probability', 0) > 1.0)
-        
-        if (confidence > 85) or (remaining_count <= 1 and confidence > 50):
-            return jsonify({
-                'question': None,
-                'ready_to_guess': True,
-                'guess': top_item
-            })
-
-        # ২. সেরা প্রশ্নটি খুঁজে বের করা
-        question = inference_engine.get_best_question(items, asked_questions)
-        
-        if not question:
-            # প্রশ্ন শেষ হয়ে গেলে গেস করা
-            return jsonify({
-                'question': None,
-                'ready_to_guess': True,
-                'guess': top_item
-            })
-            
-        return jsonify({
-            'question': question,
-            'ready_to_guess': False,
-            'confidence': confidence
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting question: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/filter', methods=['POST'])
-def filter_items():
-    try:
-        data = request.json
-        items = data.get('items', [])
-        question = data.get('question')
-        answer = data.get('answer')
-        
-        if not items or not question:
-            return jsonify({'error': 'Invalid request data'}), 400
-            
-        # ১. Probability আপডেট করা
-        updated_items = inference_engine.update_probabilities(items, question, answer)
-        
-        # ২. খুব কম Probability এর আইটেমগুলো বাদ দেওয়া (অপ্টিমাইজেশনের জন্য)
-        # কিন্তু অন্তত ৩টা আইটেম রাখবোই, যাতে রিকভার করা যায়
-        cutoff_threshold = 0.5 # ০.৫% এর নিচে হলে বাদ
-        filtered_items = [i for i in updated_items if i['probability'] > cutoff_threshold]
-        
-        # যদি বেশি ফিল্টার হয়ে যায়, তাহলে টপ ৫টা রাখি
-        if len(filtered_items) < 3:
-            filtered_items = updated_items[:5]
-            
-        return jsonify({
-            'items': filtered_items
-        })
-
-    except Exception as e:
-        logger.error(f"Error filtering: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/predict', methods=['POST'])
-def predict():
-    """
-    ফাইনাল প্রেডিকশন পাওয়ার জন্য
-    """
-    try:
-        data = request.json
-        items = data.get('items', [])
-        
-        if not items:
-            return jsonify({'error': 'No items'}), 400
-            
-        # সর্ট করা আছে ধরে নিচ্ছি, কারণ ফিল্টারে সর্ট হয়
-        best_guess = items[0]
-        confidence = items[0].get('probability', 0)
-        
-        return jsonify({
-            'prediction': best_guess,
-            'confidence': int(confidence)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'advanced_ai_active', 'version': '3.0'})
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'version': '3.0.0',
+        'engine': 'Advanced Bayesian AI',
+        'features': [
+            'Information Gain',
+            'Bayesian Network',
+            'Feature Importance',
+            'Adaptive Strategy'
+        ]
+    })
 
-# গেম ডেটা লোড করার জন্য (Frontend থেকে পাঠানো হয়)
+
+@app.route('/api/start-game', methods=['POST'])
+def start_game():
+    """
+    Start a new game session
+    
+    Request body:
+    {
+        "category": "country" | "city" | "place",
+        "items": [...],  # Optional, will load from file if not provided
+        "questions": [...]  # Question bank
+    }
+    """
+    try:
+        data = request.json
+        category = data.get('category')
+        
+        if not category:
+            return jsonify({'error': 'Category required'}), 400
+        
+        # Load items if not provided
+        items = data.get('items')
+        if not items:
+            items = data_loader.get_category_data(category)
+        
+        if not items:
+            return jsonify({'error': f'No data for category: {category}'}), 400
+        
+        # Get questions
+        questions = data.get('questions', [])
+        
+        if not questions:
+            return jsonify({'error': 'Questions required'}), 400
+        
+        # Start new game
+        game_state = inference_engine.start_new_game(category, items, questions)
+        
+        # Store in active games
+        session_id = game_state.session_id
+        active_games[session_id] = game_state
+        
+        logger.info(f"New game started: {session_id}")
+        
+        return jsonify({
+            'session_id': session_id,
+            'category': category,
+            'total_items': len(items),
+            'message': 'Game started successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting game: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/question', methods=['POST'])
+def get_next_question():
+    """
+    Get next question to ask
+    
+    Request body:
+    {
+        "session_id": "...",  # Optional if using items directly
+        "items": [...],  # Optional
+        "asked_questions": [...]  # Optional
+    }
+    """
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        
+        # If session_id provided, use existing game
+        if session_id and session_id in active_games:
+            game_state = active_games[session_id]
+            inference_engine.current_game = game_state
+        else:
+            # Fallback: use provided items (for backward compatibility)
+            items = data.get('items', [])
+            asked_questions = data.get('asked_questions', [])
+            
+            if not items:
+                return jsonify({'error': 'No active game or items provided'}), 400
+        
+        # Get next question
+        question = inference_engine.get_next_question()
+        
+        if question is None:
+            # Should stop asking
+            return jsonify({
+                'question': None,
+                'ready_to_guess': True,
+                'message': 'Ready to make prediction'
+            })
+        
+        # Get current state
+        game_state = inference_engine.current_game
+        active_items = game_state.get_active_items()
+        confidence = inference_engine.confidence_calculator.calculate(active_items)
+        
+        return jsonify({
+            'question': question,
+            'ready_to_guess': False,
+            'confidence': int(confidence),
+            'questions_asked': game_state.questions_asked,
+            'active_items_count': len(active_items)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting question: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/answer', methods=['POST'])
+def process_answer():
+    """
+    Process user's answer
+    
+    Request body:
+    {
+        "session_id": "...",
+        "answer": "yes" | "probably" | "dontknow" | "probablynot" | "no"
+    }
+    """
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        answer = data.get('answer')
+        
+        if not session_id or session_id not in active_games:
+            return jsonify({'error': 'Invalid or expired session'}), 400
+        
+        if not answer:
+            return jsonify({'error': 'Answer required'}), 400
+        
+        # Get game state
+        game_state = active_games[session_id]
+        inference_engine.current_game = game_state
+        
+        # Process answer
+        result = inference_engine.process_answer(answer)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error processing answer: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/filter', methods=['POST'])
+def filter_items():
+    """
+    Filter items based on answer (backward compatible)
+    
+    Request body:
+    {
+        "items": [...],
+        "question": {...},
+        "answer": "..."
+    }
+    """
+    try:
+        data = request.json
+        items_data = data.get('items', [])
+        question = data.get('question')
+        answer = data.get('answer')
+        
+        if not items_data or not question or not answer:
+            return jsonify({'error': 'Missing required parameters'}), 400
+        
+        # Convert to Item objects
+        from models.item_model import Item
+        items = [Item.from_dict(item_dict) for item_dict in items_data]
+        
+        # Update probabilities
+        updated_items = inference_engine.probability_manager.update_item_probability
+        
+        for item in items:
+            item.probability = updated_items(item, question, answer)
+        
+        # Normalize
+        inference_engine.probability_manager.normalize_probabilities(items)
+        
+        # Soft filter
+        inference_engine.probability_manager.soft_filter(items)
+        
+        # Convert back to dicts
+        filtered_items = [item.to_dict() for item in items if not item.eliminated]
+        
+        # Sort by probability
+        filtered_items.sort(key=lambda x: x['probability'], reverse=True)
+        
+        return jsonify({
+            'items': filtered_items
+        })
+        
+    except Exception as e:
+        logger.error(f"Error filtering items: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/predict', methods=['POST'])
+def get_prediction():
+    """
+    Get final prediction
+    
+    Request body:
+    {
+        "session_id": "...",  # Optional
+        "items": [...]  # Optional if session_id provided
+    }
+    """
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        
+        # Use session if available
+        if session_id and session_id in active_games:
+            game_state = active_games[session_id]
+            inference_engine.current_game = game_state
+            
+            result = inference_engine.get_final_prediction()
+            
+            # Clean up session
+            del active_games[session_id]
+            
+            return jsonify(result)
+        else:
+            # Fallback for backward compatibility
+            items_data = data.get('items', [])
+            
+            if not items_data:
+                return jsonify({'error': 'No session or items provided'}), 400
+            
+            from models.item_model import Item
+            items = [Item.from_dict(item_dict) for item_dict in items_data]
+            
+            # Get best guess
+            sorted_items = sorted(items, key=lambda x: x.probability, reverse=True)
+            best_guess = sorted_items[0] if sorted_items else None
+            
+            if not best_guess:
+                return jsonify({'error': 'No prediction possible'}), 400
+            
+            # Calculate confidence
+            confidence = inference_engine.confidence_calculator.calculate(items)
+            
+            return jsonify({
+                'prediction': best_guess.to_dict(),
+                'confidence': int(confidence),
+                'alternatives': [item.to_dict() for item in sorted_items[1:4]],
+                'questions_asked': data.get('questions_asked', 0)
+            })
+            
+    except Exception as e:
+        logger.error(f"Error making prediction: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get session statistics"""
+    try:
+        stats = inference_engine.get_session_stats()
+        data_stats = data_loader.get_data_stats()
+        
+        return jsonify({
+            'session': stats,
+            'data': data_stats,
+            'active_games': len(active_games)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/load-data', methods=['POST'])
 def load_data():
-    return jsonify({'status': 'success', 'message': 'Data processed stateless-ly'})
+    """
+    Load data into backend (backward compatible)
+    Frontend can send data during initialization
+    """
+    try:
+        data = request.json
+        category = data.get('category')
+        items = data.get('items', [])
+        questions = data.get('questions', [])
+        
+        logger.info(f"Data loaded for {category}: {len(items)} items, {len(questions)} questions")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Loaded {len(items)} items and {len(questions)} questions'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error loading data: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error'}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port)
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    
+    logger.info(f"Starting GeoAI Backend on port {port}")
+    logger.info(f"Debug mode: {debug}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)
