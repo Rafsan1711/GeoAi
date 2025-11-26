@@ -1,5 +1,5 @@
 """
-Bayesian Network - Probabilistic Reasoning
+Bayesian Network - Probabilistic Reasoning (Simplified - No Scipy)
 Models dependencies between attributes and performs belief propagation
 """
 
@@ -18,8 +18,8 @@ class BayesianNetwork:
     
     def __init__(self):
         # Network structure
-        self.nodes = {}  # attribute -> Node
-        self.edges = []  # (parent, child) relationships
+        self.nodes = {}
+        self.edges = []
         
         # Beliefs (current probability distributions)
         self.beliefs = defaultdict(lambda: defaultdict(float))
@@ -34,20 +34,14 @@ class BayesianNetwork:
         self.dependencies = defaultdict(set)
     
     def build_network(self, items: List, questions: List[Dict]):
-        """
-        Build Bayesian network structure from data
-        
-        Args:
-            items: List of items
-            questions: Question bank
-        """
+        """Build Bayesian network structure from data"""
         # Extract all attributes
         all_attributes = set()
         for question in questions:
             all_attributes.add(question['attribute'])
         
-        # Learn dependencies between attributes
-        self._learn_dependencies(items, all_attributes)
+        # Learn dependencies between attributes (simplified)
+        self._learn_dependencies_simple(items, all_attributes)
         
         # Initialize beliefs (uniform prior)
         for attr in all_attributes:
@@ -61,13 +55,7 @@ class BayesianNetwork:
         logger.info(f"Bayesian network built with {len(all_attributes)} attributes")
     
     def update_beliefs(self, question: Dict, answer: str):
-        """
-        Update beliefs based on evidence (answer to question)
-        
-        Args:
-            question: Question that was answered
-            answer: User's answer
-        """
+        """Update beliefs based on evidence (answer to question)"""
         attribute = question['attribute']
         value = question['value']
         
@@ -81,16 +69,7 @@ class BayesianNetwork:
         self._propagate_beliefs(attribute)
     
     def score_question(self, question: Dict, answer_history: List[Tuple]) -> float:
-        """
-        Score a question based on current beliefs and dependencies
-        
-        Args:
-            question: Question to score
-            answer_history: Previous (question, answer) pairs
-            
-        Returns:
-            float: Score (0-1)
-        """
+        """Score a question based on current beliefs and dependencies"""
         attribute = question['attribute']
         value = question['value']
         
@@ -105,17 +84,8 @@ class BayesianNetwork:
         
         return score
     
-    def _learn_dependencies(self, items: List, attributes: Set[str]):
-        """
-        Learn which attributes depend on each other
-        Uses chi-square test for independence
-        
-        Args:
-            items: List of items
-            attributes: Set of all attributes
-        """
-        from scipy import stats
-        
+    def _learn_dependencies_simple(self, items: List, attributes: Set[str]):
+        """Learn which attributes depend on each other (simplified version)"""
         attr_list = list(attributes)
         
         for i, attr1 in enumerate(attr_list):
@@ -124,30 +94,40 @@ class BayesianNetwork:
                 contingency = self._build_contingency_table(items, attr1, attr2)
                 
                 if contingency.size > 0:
-                    try:
-                        # Chi-square test
-                        chi2, p_value, dof, expected = stats.chi2_contingency(contingency)
-                        
-                        # If p-value < 0.05, attributes are dependent
-                        if p_value < 0.05:
-                            self.dependencies[attr1].add(attr2)
-                            self.dependencies[attr2].add(attr1)
-                    except:
-                        pass  # Skip if test fails
+                    # Simple chi-square test without scipy
+                    chi2 = self._chi_square_simple(contingency)
+                    
+                    # If chi2 is high, attributes are dependent
+                    if chi2 > 3.84:  # Critical value for p=0.05
+                        self.dependencies[attr1].add(attr2)
+                        self.dependencies[attr2].add(attr1)
+    
+    def _chi_square_simple(self, observed: np.ndarray) -> float:
+        """Simplified chi-square test without scipy"""
+        if observed.size == 0:
+            return 0.0
+        
+        # Calculate expected frequencies
+        row_totals = observed.sum(axis=1)
+        col_totals = observed.sum(axis=0)
+        total = observed.sum()
+        
+        if total == 0:
+            return 0.0
+        
+        expected = np.outer(row_totals, col_totals) / total
+        
+        # Avoid division by zero
+        expected[expected == 0] = 1e-10
+        
+        # Calculate chi-square statistic
+        chi2 = np.sum((observed - expected) ** 2 / expected)
+        
+        return chi2
     
     def _build_contingency_table(self, items: List, attr1: str, 
                                  attr2: str) -> np.ndarray:
-        """
-        Build contingency table for two attributes
-        
-        Args:
-            items: List of items
-            attr1: First attribute
-            attr2: Second attribute
-            
-        Returns:
-            np.ndarray: Contingency table
-        """
+        """Build contingency table for two attributes"""
         # Get unique values for each attribute
         values1 = set()
         values2 = set()
@@ -182,14 +162,7 @@ class BayesianNetwork:
         return table
     
     def _update_attribute_belief(self, attribute: str, value, answer: str):
-        """
-        Update belief distribution for an attribute
-        
-        Args:
-            attribute: Attribute to update
-            value: Value mentioned in question
-            answer: User's answer
-        """
+        """Update belief distribution for an attribute"""
         # Answer confidence weights
         confidence_map = {
             'yes': 1.0,
@@ -203,7 +176,6 @@ class BayesianNetwork:
         
         # Update belief for this value
         if value in self.beliefs[attribute]:
-            # Increase belief in value proportional to confidence
             self.beliefs[attribute][value] *= (1.0 + confidence)
         
         # Normalize
@@ -213,21 +185,14 @@ class BayesianNetwork:
                 self.beliefs[attribute][v] /= total
     
     def _propagate_beliefs(self, source_attribute: str):
-        """
-        Propagate beliefs to dependent attributes
-        
-        Args:
-            source_attribute: Attribute whose belief was updated
-        """
+        """Propagate beliefs to dependent attributes"""
         # Get dependent attributes
         dependents = self.dependencies.get(source_attribute, set())
         
         for dep_attr in dependents:
-            # Adjust beliefs in dependent attribute
-            # This is a simplified propagation
             source_entropy = self._calculate_attribute_entropy(source_attribute)
             
-            if source_entropy < 0.5:  # Low entropy = high certainty
+            if source_entropy < 0.5:
                 # Increase certainty in dependent attribute
                 for value in self.beliefs[dep_attr]:
                     self.beliefs[dep_attr][value] *= (1.0 + (1.0 - source_entropy) * 0.1)
@@ -239,17 +204,9 @@ class BayesianNetwork:
                         self.beliefs[dep_attr][v] /= total
     
     def _calculate_attribute_entropy(self, attribute: str) -> float:
-        """
-        Calculate entropy of belief distribution for an attribute
-        
-        Args:
-            attribute: Attribute to calculate entropy for
-            
-        Returns:
-            float: Entropy (0-1, normalized)
-        """
+        """Calculate entropy of belief distribution for an attribute"""
         if attribute not in self.beliefs:
-            return 1.0  # Maximum uncertainty
+            return 1.0
         
         probs = list(self.beliefs[attribute].values())
         
@@ -275,20 +232,10 @@ class BayesianNetwork:
     
     def _calculate_dependency_score(self, attribute: str, 
                                    answer_history: List[Tuple]) -> float:
-        """
-        Calculate score based on dependencies with answered questions
-        
-        Args:
-            attribute: Attribute to score
-            answer_history: Previous answers
-            
-        Returns:
-            float: Dependency score (0-1)
-        """
+        """Calculate score based on dependencies with answered questions"""
         if not answer_history:
-            return 0.5  # Neutral
+            return 0.5
         
-        # Check if any dependent attributes have been answered
         dependents = self.dependencies.get(attribute, set())
         
         score = 0.5
@@ -298,29 +245,17 @@ class BayesianNetwork:
             prev_attr = prev_q['attribute']
             
             if prev_attr in dependents:
-                # If dependent attribute was answered with certainty,
-                # this attribute is more valuable
                 if prev_a in ['yes', 'no']:
                     score += 0.2
                     count += 1
         
-        # Average and clamp
         if count > 0:
-            score = score / (count + 1)  # +1 to include base score
+            score = score / (count + 1)
         
         return max(0.0, min(1.0, score))
     
     def _get_attribute_values(self, items: List, attribute: str) -> Set:
-        """
-        Get all possible values for an attribute
-        
-        Args:
-            items: List of items
-            attribute: Attribute name
-            
-        Returns:
-            Set: Unique values
-        """
+        """Get all possible values for an attribute"""
         values = set()
         
         for item in items:
@@ -335,16 +270,7 @@ class BayesianNetwork:
         return values
     
     def get_belief(self, attribute: str, value) -> float:
-        """
-        Get current belief for an attribute-value pair
-        
-        Args:
-            attribute: Attribute name
-            value: Value
-            
-        Returns:
-            float: Belief probability
-        """
+        """Get current belief for an attribute-value pair"""
         return self.beliefs.get(attribute, {}).get(value, 0.5)
     
     def reset(self):
