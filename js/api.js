@@ -1,4 +1,4 @@
-// api.js - API Communication and Data Loading
+// api.js - Advanced Backend API Integration (Session-Based)
 
 class APIHandler {
     constructor() {
@@ -11,7 +11,7 @@ class APIHandler {
             places: null
         };
         this.backendHealthy = false;
-        this.dataLoadedToBackend = false;
+        this.sessionId = null; // NEW: Track current session
     }
 
     /**
@@ -28,6 +28,7 @@ class APIHandler {
                 const data = await response.json();
                 this.backendHealthy = true;
                 console.log('✅ Backend is healthy:', data);
+                console.log(`🤖 AI Engine: ${data.engine} v${data.version}`);
                 return true;
             }
         } catch (error) {
@@ -80,11 +81,6 @@ class APIHandler {
             // Check backend health
             if (CONFIG.FEATURES.USE_PYTHON_API) {
                 await this.checkBackendHealth();
-                
-                // Load data to backend if healthy
-                if (this.backendHealthy) {
-                    await this.loadDataToBackend();
-                }
             }
 
             return this.dataCache;
@@ -95,47 +91,6 @@ class APIHandler {
                 city: [],
                 place: []
             };
-        }
-    }
-
-    /**
-     * Load data and questions to backend
-     */
-    async loadDataToBackend() {
-        if (this.dataLoadedToBackend) return;
-        
-        try {
-            console.log('📤 Loading data to backend...');
-            
-            // Load questions
-            const questionBanks = {
-                country: game.questionBank.country || [],
-                city: game.questionBank.city || [],
-                place: game.questionBank.place || []
-            };
-            
-            // Send data for each category
-            for (const [category, items] of Object.entries(this.dataCache)) {
-                const response = await this.makeRequest(
-                    CONFIG.API.ENDPOINTS.LOAD_DATA,
-                    'POST',
-                    {
-                        category: category,
-                        items: items,
-                        questions: questionBanks[category]
-                    }
-                );
-                
-                if (response) {
-                    console.log(`✅ Loaded ${category} data to backend`);
-                }
-            }
-            
-            this.dataLoadedToBackend = true;
-            console.log('✅ All data loaded to backend successfully');
-            
-        } catch (error) {
-            console.error('Error loading data to backend:', error);
         }
     }
 
@@ -151,14 +106,6 @@ class APIHandler {
      */
     async makeRequest(endpoint, method = 'GET', data = null) {
         const url = `${this.baseURL}${endpoint}`;
-        const cacheKey = `${method}:${url}:${JSON.stringify(data)}`;
-
-        // Check cache for GET requests
-        if (method === 'GET' && CONFIG.PERFORMANCE.CACHE_API_RESPONSES) {
-            if (this.cache.has(cacheKey)) {
-                return this.cache.get(cacheKey);
-            }
-        }
 
         const options = {
             method,
@@ -189,11 +136,6 @@ class APIHandler {
                 console.log(`🟢 API Response:`, result);
             }
 
-            // Cache successful GET requests
-            if (method === 'GET' && CONFIG.PERFORMANCE.CACHE_API_RESPONSES) {
-                this.cache.set(cacheKey, result);
-            }
-
             return result;
         } catch (error) {
             if (error.name === 'TimeoutError') {
@@ -208,24 +150,83 @@ class APIHandler {
     }
 
     /**
-     * Get next question from Python API with fallback
+     * Start new game session (NEW - Session-based API)
+     */
+    async startGameSession(category, items, questions) {
+        if (!CONFIG.FEATURES.USE_SESSION_API || !this.backendHealthy) {
+            return null;
+        }
+
+        try {
+            const response = await this.makeRequest(
+                CONFIG.API.ENDPOINTS.START_GAME,
+                'POST',
+                {
+                    category: category,
+                    items: items,
+                    questions: questions
+                }
+            );
+
+            if (response && response.session_id) {
+                this.sessionId = response.session_id;
+                console.log('✅ Game session started:', this.sessionId);
+                return response;
+            }
+        } catch (error) {
+            console.warn('Failed to start backend session:', error);
+            this.backendHealthy = false;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get next question from backend (Session-based)
      */
     async getNextQuestion(category, askedQuestions, possibleItems) {
-        // Try Python API first if enabled and healthy
-        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy) {
+        // Try session-based API first
+        if (CONFIG.FEATURES.USE_SESSION_API && this.sessionId && this.backendHealthy) {
             try {
                 const response = await this.makeRequest(
                     CONFIG.API.ENDPOINTS.GET_QUESTION,
                     'POST',
                     {
-                        category: category,
-                        asked_questions: askedQuestions,
-                        items: possibleItems
+                        session_id: this.sessionId
+                    }
+                );
+
+                if (response) {
+                    if (response.ready_to_guess) {
+                        console.log('🎯 Backend ready to guess');
+                        return null;
+                    }
+                    
+                    if (response.question) {
+                        console.log('🤖 Backend question:', response.question.question);
+                        return response.question;
+                    }
+                }
+            } catch (error) {
+                console.warn('Backend question failed, using local algorithm');
+                this.backendHealthy = false;
+            }
+        }
+
+        // Fallback to old API or local algorithm
+        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy && !CONFIG.FEATURES.USE_SESSION_API) {
+            try {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.GET_QUESTION,
+                    'POST',
+                    {
+                        items: possibleItems,
+                        asked_questions: askedQuestions
                     }
                 );
 
                 if (response && response.question) {
-                    console.log('🤖 Using backend AI question');
+                    console.log('🤖 Using backend question');
                     return response.question;
                 }
             } catch (error) {
@@ -234,7 +235,7 @@ class APIHandler {
             }
         }
 
-        // Fallback to local algorithm
+        // Local algorithm fallback
         if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
             console.log('💻 Using local algorithm question');
             const questions = game.questionBank[category] || [];
@@ -249,11 +250,39 @@ class APIHandler {
     }
 
     /**
-     * Filter items using Python API with fallback
+     * Process answer (Session-based)
+     */
+    async processAnswer(answer) {
+        if (CONFIG.FEATURES.USE_SESSION_API && this.sessionId && this.backendHealthy) {
+            try {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.PROCESS_ANSWER,
+                    'POST',
+                    {
+                        session_id: this.sessionId,
+                        answer: answer
+                    }
+                );
+
+                if (response) {
+                    console.log('🤖 Backend processed answer:', response);
+                    return response;
+                }
+            } catch (error) {
+                console.warn('Backend answer processing failed');
+                this.backendHealthy = false;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Filter items using backend or local algorithm
      */
     async filterItems(possibleItems, question, answer) {
-        // Try Python API first if enabled and healthy
-        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy) {
+        // Try backend API first
+        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy && !CONFIG.FEATURES.USE_SESSION_API) {
             try {
                 const response = await this.makeRequest(
                     CONFIG.API.ENDPOINTS.FILTER,
@@ -289,11 +318,33 @@ class APIHandler {
     }
 
     /**
-     * Get prediction from Python API with fallback
+     * Get prediction from backend (Session-based)
      */
     async getPrediction(possibleItems, questionsAsked) {
-        // Try Python API first if enabled and healthy
-        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy) {
+        // Try session-based API first
+        if (CONFIG.FEATURES.USE_SESSION_API && this.sessionId && this.backendHealthy) {
+            try {
+                const response = await this.makeRequest(
+                    CONFIG.API.ENDPOINTS.PREDICT,
+                    'POST',
+                    {
+                        session_id: this.sessionId
+                    }
+                );
+
+                if (response && response.prediction) {
+                    console.log('🤖 Backend prediction:', response);
+                    this.sessionId = null; // Clear session after prediction
+                    return response;
+                }
+            } catch (error) {
+                console.warn('Backend prediction failed');
+                this.backendHealthy = false;
+            }
+        }
+
+        // Fallback to old API
+        if (CONFIG.FEATURES.USE_PYTHON_API && this.backendHealthy && !CONFIG.FEATURES.USE_SESSION_API) {
             try {
                 const response = await this.makeRequest(
                     CONFIG.API.ENDPOINTS.PREDICT,
@@ -314,17 +365,13 @@ class APIHandler {
             }
         }
 
-        // Fallback to local algorithm
+        // Local algorithm fallback
         if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
             console.log('💻 Using local algorithm prediction');
             return {
                 prediction: localAlgorithm.getBestGuess(possibleItems),
                 confidence: localAlgorithm.calculateConfidence(possibleItems),
-                should_stop: localAlgorithm.shouldStopAsking(
-                    possibleItems,
-                    questionsAsked,
-                    CONFIG.GAME.MAX_QUESTIONS
-                )
+                alternatives: possibleItems.slice(1, 4)
             };
         }
 
@@ -361,7 +408,7 @@ class APIHandler {
             size: this.cache.size,
             keys: Array.from(this.cache.keys()),
             backendHealthy: this.backendHealthy,
-            dataLoadedToBackend: this.dataLoadedToBackend
+            sessionId: this.sessionId
         };
     }
 
@@ -370,13 +417,15 @@ class APIHandler {
      */
     async retryBackendConnection() {
         console.log('🔄 Retrying backend connection...');
-        const healthy = await this.checkBackendHealth();
-        
-        if (healthy && !this.dataLoadedToBackend) {
-            await this.loadDataToBackend();
-        }
-        
-        return healthy;
+        return await this.checkBackendHealth();
+    }
+
+    /**
+     * End current session
+     */
+    endSession() {
+        this.sessionId = null;
+        console.log('🔚 Session ended');
     }
 }
 
