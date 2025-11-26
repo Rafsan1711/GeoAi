@@ -1,5 +1,5 @@
 """
-Feature Importance - Attribute Weight Calculator
+Feature Importance - Attribute Weight Calculator (Simplified - No Pandas)
 Calculates importance of each attribute for decision making
 """
 
@@ -22,27 +22,15 @@ class FeatureImportance:
         self.correlation_scores = {}
     
     def calculate_all(self, items: List, questions: List[Dict]) -> Dict[str, float]:
-        """
-        Calculate importance for all attributes
-        
-        Args:
-            items: List of items
-            questions: Question bank
-            
-        Returns:
-            Dict: attribute -> importance score
-        """
-        # Extract unique attributes
+        """Calculate importance for all attributes"""
         attributes = set(q['attribute'] for q in questions)
         
         for attr in attributes:
-            # Calculate multiple importance metrics
             variance = self._calculate_variance(items, attr)
             uniqueness = self._calculate_uniqueness(items, attr)
             coverage = self._calculate_coverage(items, attr)
             discrimination = self._calculate_discrimination_power(items, attr)
             
-            # Combined score (weighted average)
             importance = (
                 0.30 * variance +
                 0.25 * uniqueness +
@@ -57,17 +45,7 @@ class FeatureImportance:
         return self.importance_scores
     
     def _calculate_variance(self, items: List, attribute: str) -> float:
-        """
-        Calculate variance of attribute values
-        Higher variance = more discriminative
-        
-        Args:
-            items: List of items
-            attribute: Attribute to analyze
-            
-        Returns:
-            float: Variance score (0-1)
-        """
+        """Calculate variance of attribute values"""
         values = []
         
         for item in items:
@@ -79,29 +57,18 @@ class FeatureImportance:
         if not values:
             return 0.0
         
-        # Count unique values
         unique_values = len(set(values))
         total_items = len(items)
         
         if total_items == 0:
             return 0.0
         
-        # Normalized variance (more unique = higher score)
         normalized_variance = unique_values / total_items
         
         return min(1.0, normalized_variance)
     
     def _calculate_uniqueness(self, items: List, attribute: str) -> float:
-        """
-        Calculate how unique/diverse the attribute values are
-        
-        Args:
-            items: List of items
-            attribute: Attribute to analyze
-            
-        Returns:
-            float: Uniqueness score (0-1)
-        """
+        """Calculate how unique/diverse the attribute values are"""
         value_counts = defaultdict(int)
         total = 0
         
@@ -120,22 +87,12 @@ class FeatureImportance:
         if total == 0:
             return 0.0
         
-        # Calculate Gini impurity (measure of diversity)
         gini = 1.0 - sum((count / total) ** 2 for count in value_counts.values())
         
         return gini
     
     def _calculate_coverage(self, items: List, attribute: str) -> float:
-        """
-        Calculate what percentage of items have this attribute defined
-        
-        Args:
-            items: List of items
-            attribute: Attribute to analyze
-            
-        Returns:
-            float: Coverage score (0-1)
-        """
+        """Calculate what percentage of items have this attribute defined"""
         defined_count = 0
         
         for item in items:
@@ -150,18 +107,7 @@ class FeatureImportance:
         return coverage
     
     def _calculate_discrimination_power(self, items: List, attribute: str) -> float:
-        """
-        Calculate how well this attribute discriminates between items
-        Uses entropy-based measure
-        
-        Args:
-            items: List of items
-            attribute: Attribute to analyze
-            
-        Returns:
-            float: Discrimination power (0-1)
-        """
-        # Group items by attribute value
+        """Calculate how well this attribute discriminates between items"""
         value_groups = defaultdict(list)
         
         for item in items:
@@ -177,7 +123,6 @@ class FeatureImportance:
         if not value_groups:
             return 0.0
         
-        # Calculate entropy of distribution
         total_items = len(items)
         entropy = 0.0
         
@@ -186,7 +131,6 @@ class FeatureImportance:
             if p > 0:
                 entropy -= p * np.log2(p)
         
-        # Normalize by max possible entropy
         max_entropy = np.log2(len(value_groups)) if len(value_groups) > 1 else 1.0
         
         if max_entropy > 0:
@@ -200,16 +144,8 @@ class FeatureImportance:
         """Get importance score for an attribute"""
         return self.importance_scores.get(attribute, 0.5)
     
-    def get_top_features(self, n: int = 10) -> List[Tuple[str, float]]:
-        """
-        Get top N most important features
-        
-        Args:
-            n: Number of features to return
-            
-        Returns:
-            List: [(attribute, score), ...] sorted by score
-        """
+    def get_top_features(self, n: int = 10) -> List[tuple]:
+        """Get top N most important features"""
         sorted_features = sorted(
             self.importance_scores.items(),
             key=lambda x: x[1],
@@ -219,18 +155,7 @@ class FeatureImportance:
         return sorted_features[:n]
     
     def calculate_correlation(self, items: List, attr1: str, attr2: str) -> float:
-        """
-        Calculate correlation between two attributes
-        
-        Args:
-            items: List of items
-            attr1: First attribute
-            attr2: Second attribute
-            
-        Returns:
-            float: Correlation coefficient (-1 to 1)
-        """
-        # Build value mappings
+        """Calculate correlation between two attributes (simplified)"""
         values1 = []
         values2 = []
         
@@ -253,7 +178,7 @@ class FeatureImportance:
         encoded1 = [unique1.index(v) for v in values1]
         encoded2 = [unique2.index(v) for v in values2]
         
-        # Calculate Pearson correlation
+        # Simple correlation coefficient
         try:
             correlation = np.corrcoef(encoded1, encoded2)[0, 1]
             if np.isnan(correlation):
@@ -265,16 +190,7 @@ class FeatureImportance:
     
     def calculate_mutual_information_matrix(self, items: List, 
                                            attributes: List[str]) -> np.ndarray:
-        """
-        Calculate mutual information between all pairs of attributes
-        
-        Args:
-            items: List of items
-            attributes: List of attributes
-            
-        Returns:
-            np.ndarray: MI matrix
-        """
+        """Calculate mutual information between all pairs of attributes"""
         n = len(attributes)
         mi_matrix = np.zeros((n, n))
         
@@ -290,18 +206,7 @@ class FeatureImportance:
     
     def _calculate_mutual_information(self, items: List, attr1: str, 
                                      attr2: str) -> float:
-        """
-        Calculate mutual information between two attributes
-        
-        Args:
-            items: List of items
-            attr1: First attribute
-            attr2: Second attribute
-            
-        Returns:
-            float: Mutual information
-        """
-        # Build joint distribution
+        """Calculate mutual information between two attributes"""
         joint_counts = defaultdict(int)
         attr1_counts = defaultdict(int)
         attr2_counts = defaultdict(int)
@@ -322,7 +227,6 @@ class FeatureImportance:
         if total == 0:
             return 0.0
         
-        # Calculate mutual information
         mi = 0.0
         
         for (v1, v2), joint_count in joint_counts.items():
