@@ -1,32 +1,32 @@
-// config.js - Updated for Advanced Backend
+// config.js - Updated for Unlimited Questions
 
 const CONFIG = {
     // API Configuration
     API: {
-        // Your Render.com backend URL (update this after deployment)
         BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com',
         ENDPOINTS: {
-            START_GAME: '/api/start-game',      // NEW: Initialize game session
+            START_GAME: '/api/start-game',
             GET_QUESTION: '/api/question',
-            PROCESS_ANSWER: '/api/answer',       // NEW: Process answer endpoint
+            PROCESS_ANSWER: '/api/answer',
             FILTER: '/api/filter',
             PREDICT: '/api/predict',
             STATS: '/api/stats',
             LOAD_DATA: '/api/load-data',
             HEALTH: '/health'
         },
-        TIMEOUT: 20000, // 20 seconds (increased for complex calculations)
+        TIMEOUT: 20000,
         RETRY_ATTEMPTS: 3
     },
 
     // Game Configuration
     GAME: {
-        MAX_QUESTIONS: 15,
-        MIN_CONFIDENCE_TO_GUESS: 90,  // Increased from 85 to 90
+        MAX_QUESTIONS: 50,              // Increased from 15 to 50
+        MIN_CONFIDENCE_TO_GUESS: 92,    // Increased from 90 to 92 for better accuracy
         THINKING_DURATION: 3000,
-        QUESTION_DELAY: 500,           // Increased for smoother UX
+        QUESTION_DELAY: 500,
         ANIMATION_DURATION: 600,
-        USE_SESSION_MODE: true          // NEW: Use session-based API calls
+        USE_SESSION_MODE: true,
+        ALLOW_UNLIMITED_QUESTIONS: true  // NEW: Allow unlimited questions if needed
     },
 
     // Data Configuration
@@ -38,7 +38,7 @@ const CONFIG = {
         }
     },
 
-    // Answer Weights (kept for local fallback)
+    // Answer Weights
     ANSWER_WEIGHTS: {
         'yes': 1.0,
         'probably': 0.75,
@@ -54,7 +54,7 @@ const CONFIG = {
         ENABLE_ANIMATIONS: true,
         ENABLE_SOUND: false,
         THEME: 'dark',
-        SHOW_CONFIDENCE_BREAKDOWN: false  // NEW: Show detailed confidence
+        SHOW_CONFIDENCE_BREAKDOWN: false
     },
 
     // Debug Configuration
@@ -63,17 +63,17 @@ const CONFIG = {
         LOG_API_CALLS: true,
         LOG_STATE_CHANGES: false,
         SHOW_PROBABILITY_SCORES: false,
-        LOG_BACKEND_RESPONSES: true      // NEW: Log backend AI responses
+        LOG_BACKEND_RESPONSES: true
     },
 
     // Feature Flags
     FEATURES: {
-        USE_PYTHON_API: true,             // ✅ Always use Python backend now
-        USE_LOCAL_ALGORITHM: true,        // Fallback if API fails
-        USE_SESSION_API: true,            // NEW: Use session-based endpoints
+        USE_PYTHON_API: true,
+        USE_LOCAL_ALGORITHM: true,
+        USE_SESSION_API: true,
         ENABLE_MULTIPLAYER: false,
         ENABLE_LEADERBOARD: false,
-        ENABLE_ANSWER_EXPLANATIONS: false // NEW: Future feature
+        ENABLE_ANSWER_EXPLANATIONS: false
     },
 
     // Performance
@@ -81,7 +81,7 @@ const CONFIG = {
         LAZY_LOAD_DATA: false,
         CACHE_API_RESPONSES: true,
         PRELOAD_IMAGES: false,
-        USE_REQUEST_BATCHING: false      // NEW: Batch multiple API calls
+        USE_REQUEST_BATCHING: false
     },
 
     // Backend AI Configuration
@@ -109,33 +109,32 @@ const CONFIG = {
         ENABLED: false,
         TRACK_GAMEPLAY: true,
         TRACK_ERRORS: true,
-        TRACK_AI_ACCURACY: true          // NEW: Track AI performance
+        TRACK_AI_ACCURACY: true
     }
 };
 
 // Validation function
 function validateConfig() {
-    if (CONFIG.GAME.MAX_QUESTIONS < 5 || CONFIG.GAME.MAX_QUESTIONS > 30) {
-        console.warn('⚠️  MAX_QUESTIONS should be between 5 and 30');
+    if (CONFIG.GAME.MAX_QUESTIONS < 10 || CONFIG.GAME.MAX_QUESTIONS > 100) {
+        console.warn('⚠️  MAX_QUESTIONS should be between 10 and 100');
     }
     
     if (CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS < 50 || CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS > 99) {
         console.warn('⚠️  MIN_CONFIDENCE_TO_GUESS should be between 50 and 99');
     }
     
-    // Check if BASE_URL is configured
     if (CONFIG.API.BASE_URL.includes('your-backend-url') || 
         CONFIG.API.BASE_URL.includes('sliding-puzzle')) {
         console.warn('⚠️  Please update API.BASE_URL in config.js with your actual Render.com backend URL!');
     }
     
-    // Check if Python API is enabled
     if (!CONFIG.FEATURES.USE_PYTHON_API) {
         console.warn('⚠️  Python API is disabled. Using local algorithm only.');
     }
     
     console.log('✅ Config validation complete');
     console.log(`🤖 AI Engine: ${CONFIG.AI.ALGORITHM} v${CONFIG.AI.VERSION}`);
+    console.log(`🎯 Max Questions: ${CONFIG.GAME.MAX_QUESTIONS} (Confidence threshold: ${CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS}%)`);
     
     return true;
 }
