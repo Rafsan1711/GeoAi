@@ -1,4 +1,4 @@
-// algorithm.js - Advanced AI Algorithm (Updated for Rich Data & Arrays)
+// algorithm.js - Enhanced AI Algorithm with Full Array Support
 
 class AIEngine {
     constructor() {
@@ -12,8 +12,7 @@ class AIEngine {
     }
 
     /**
-     * Helper: Check if an item's attribute matches the question's value.
-     * Handles Strings, Booleans, and Arrays (Lists).
+     * Enhanced match checker - handles Strings, Booleans, Numbers, and Arrays
      */
     checkMatch(itemValue, questionValue) {
         // Handle undefined or null
@@ -21,15 +20,18 @@ class AIEngine {
 
         // 1. If item attribute is an Array (e.g., famousFor: ['Cricket', 'Tea'])
         if (Array.isArray(itemValue)) {
-            // Case-insensitive check if the array includes the question value
-            return itemValue.some(v => 
-                String(v).toLowerCase() === String(questionValue).toLowerCase()
-            );
+            // Case-insensitive check if array includes the question value
+            return itemValue.some(v => {
+                if (typeof v === 'string' && typeof questionValue === 'string') {
+                    return v.toLowerCase().trim() === questionValue.toLowerCase().trim();
+                }
+                return v === questionValue;
+            });
         }
 
         // 2. If item attribute is a String
-        if (typeof itemValue === 'string') {
-            return itemValue.toLowerCase() === String(questionValue).toLowerCase();
+        if (typeof itemValue === 'string' && typeof questionValue === 'string') {
+            return itemValue.toLowerCase().trim() === questionValue.toLowerCase().trim();
         }
 
         // 3. If item attribute is Boolean or Number
@@ -46,7 +48,6 @@ class AIEngine {
         let noCount = 0;
 
         possibleItems.forEach(item => {
-            // Use the smart checkMatch function
             if (this.checkMatch(item[question.attribute], question.value)) {
                 yesCount++;
             } else {
@@ -60,10 +61,10 @@ class AIEngine {
         const yesRatio = yesCount / total;
         const noRatio = noCount / total;
 
-        // We want questions that split the data as close to 50/50 as possible
+        // Balance score - prefer 50/50 splits
         const balance = Math.min(yesRatio, noRatio);
         
-        // Apply question weight (importance)
+        // Apply question weight
         const weightedGain = balance * (question.weight || 1.0);
 
         return weightedGain;
@@ -73,10 +74,9 @@ class AIEngine {
      * Select the Best Question to ask next
      */
     selectBestQuestion(category, askedQuestions, possibleItems) {
-        // Access questionBank from the global game instance
         const questions = game.questionBank[category] || [];
 
-        // Filter out questions already asked
+        // Filter out already asked questions
         const availableQuestions = questions.filter(
             q => !askedQuestions.includes(q.question)
         );
@@ -86,11 +86,11 @@ class AIEngine {
         let bestQuestion = null;
         let maxGain = -1;
 
-        // Find the question with highest information gain
+        // Find question with highest information gain
         availableQuestions.forEach(question => {
             const gain = this.calculateInformationGain(question, possibleItems);
             
-            // Add a tiny random factor to prevent asking same order every time if gains are equal
+            // Add tiny random factor to prevent same order
             const randomFactor = Math.random() * 0.01;
             
             if ((gain + randomFactor) > maxGain) {
@@ -112,17 +112,14 @@ class AIEngine {
             let probability = item.probability || 1.0;
             
             if (answer === 'yes') {
-                // If user says YES, boost matching items, penalize non-matching
                 probability = matches ? probability * 2.0 : probability * 0.01;
             } else if (answer === 'probably') {
                 probability = matches ? probability * 1.5 : probability * 0.25;
             } else if (answer === 'dontknow') {
-                // Small penalty for everything to account for uncertainty
                 probability = probability * 0.9;
             } else if (answer === 'probablynot') {
                 probability = matches ? probability * 0.25 : probability * 1.5;
             } else if (answer === 'no') {
-                // If user says NO, penalize matching items, boost non-matching
                 probability = matches ? probability * 0.01 : probability * 2.0;
             }
 
@@ -140,8 +137,7 @@ class AIEngine {
         // 1. Update Probabilities
         let items = this.updateProbabilities(possibleItems, question, answer);
 
-        // 2. Soft Filter (Remove items that are mathematically eliminated)
-        // We use a very low threshold (0.001) instead of 0 to allow for user error recovery
+        // 2. Soft Filter (very low threshold for recovery)
         items = items.filter(item => item.probability > 0.0001);
 
         // 3. Sort by Probability (Descending)
@@ -162,7 +158,6 @@ class AIEngine {
         
         if (totalProb === 0) return 0;
 
-        // Confidence is the top item's share of the total probability
         const confidence = Math.min(99, Math.round((topProb / totalProb) * 100));
         
         return confidence;
@@ -177,7 +172,7 @@ class AIEngine {
     }
 
     /**
-     * Logic to decide if the AI should make a final guess
+     * Logic to decide if AI should make final guess
      */
     shouldStopAsking(possibleItems, questionsAsked, maxQuestions) {
         // 1. Only one item left
@@ -190,7 +185,7 @@ class AIEngine {
         const confidence = this.calculateConfidence(possibleItems);
         if (confidence >= 93) return true;
         
-        // 4. Few items left and we've asked enough questions
+        // 4. Few items left and enough questions asked
         if (possibleItems.length <= 3 && questionsAsked >= 12 && confidence >= 80) return true;
         
         return false;
