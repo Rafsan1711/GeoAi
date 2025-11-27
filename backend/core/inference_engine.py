@@ -1,6 +1,6 @@
 """
 Inference Engine - Pure Python Implementation
-Main AI Brain - No external dependencies
+Main AI Brain - No strict question limits
 """
 
 import math
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class InferenceEngine:
-    """Main AI Engine - Pure Python"""
+    """Main AI Engine - Pure Python with flexible stopping"""
     
     def __init__(self):
         self.question_selector = QuestionSelector()
@@ -39,16 +39,17 @@ class InferenceEngine:
         }
         
         self.config = {
-            'min_confidence_threshold': 90,
-            'max_questions': 15,
-            'early_stop_threshold': 95,
-            'min_items_threshold': 2,
-            'soft_filter_threshold': 0.01,
+            'min_confidence_threshold': 92,    # Increased from 90 to 92
+            'max_questions': 50,               # Increased from 15 to 50
+            'early_stop_threshold': 95,        # Keep at 95 for very high confidence
+            'min_items_threshold': 1,          # Only stop at 1 item (not 2)
+            'soft_filter_threshold': 0.005,    # More aggressive filtering (0.5% instead of 1%)
             'context_weight': 0.3,
-            'adaptive_strategy': True
+            'adaptive_strategy': True,
+            'force_high_confidence': True      # NEW: Require high confidence before stopping
         }
         
-        logger.info("Inference Engine initialized (Pure Python)")
+        logger.info("Inference Engine initialized (Pure Python, Flexible Stopping)")
     
     def start_new_game(self, category: str, items: List[Dict], 
                        questions: List[Dict]) -> GameState:
@@ -67,7 +68,7 @@ class InferenceEngine:
         self.bayesian_network.build_network(item_objects, questions)
         self.question_selector.calculate_feature_importance(item_objects, questions)
         
-        logger.info(f"New game started: {category} with {len(items)} items")
+        logger.info(f"New game started: {category} with {len(items)} items, max questions: {self.config['max_questions']}")
         return self.current_game
     
     def get_next_question(self) -> Optional[Dict]:
@@ -88,7 +89,7 @@ class InferenceEngine:
         available_questions = self.current_game.get_available_questions()
         
         if not available_questions:
-            logger.info("No more questions")
+            logger.info("No more questions available")
             return None
         
         question_scores = []
@@ -220,33 +221,60 @@ class InferenceEngine:
         }
     
     def _should_stop_asking(self) -> bool:
-        """Check if should stop"""
+        """
+        Check if should stop asking questions
+        More strict conditions - prioritize accuracy over speed
+        """
         if not self.current_game:
             return True
         
         active_items = self.current_game.get_active_items()
         
+        # Stop only if no items left
         if len(active_items) == 0:
+            logger.info("Stop: No items remaining")
             return True
         
-        if self.current_game.questions_asked >= self.config['max_questions']:
-            return True
+        # Stop only if exactly 1 item with high confidence
+        if len(active_items) == 1:
+            confidence = self.confidence_calculator.calculate(active_items)
+            if confidence >= 90:
+                logger.info(f"Stop: Single item with {confidence:.1f}% confidence")
+                return True
         
-        if len(active_items) <= self.config['min_items_threshold']:
-            return True
-        
+        # Calculate current confidence
         confidence = self.confidence_calculator.calculate(active_items)
+        
+        # Stop only at very high confidence (95%+)
         if confidence >= self.config['early_stop_threshold']:
+            logger.info(f"Stop: Very high confidence reached ({confidence:.1f}%)")
             return True
         
+        # Stop if reached max questions BUT only if confidence is acceptable
+        if self.current_game.questions_asked >= self.config['max_questions']:
+            if confidence >= self.config['min_confidence_threshold']:
+                logger.info(f"Stop: Max questions reached with {confidence:.1f}% confidence")
+                return True
+            else:
+                # Don't stop if confidence is too low, even if max questions reached
+                logger.warning(f"Max questions reached but confidence only {confidence:.1f}% - continuing")
+                # Allow a few more questions
+                if self.current_game.questions_asked >= self.config['max_questions'] + 10:
+                    logger.info("Stop: Hard limit of max+10 questions reached")
+                    return True
+                return False
+        
+        # Stop if no more questions available
         if len(self.current_game.get_available_questions()) == 0:
+            logger.info("Stop: No more questions available")
             return True
         
+        # Don't stop otherwise - keep asking until confident
         return False
     
     def _calculate_likelihood(self, item: Item, question: Dict, 
                              answer: str) -> float:
-        """Calculate likelihood"""
+        """Calculate likelihood with stronger weights"""
         attribute = question['attribute']
         target_value = question['value']
         item_value = item.attributes.get(attribute)
@@ -256,16 +284,17 @@ class InferenceEngine:
         else:
             matches = item_value == target_value
         
+        # Stronger likelihood weights for better discrimination
         if answer == 'yes':
-            return 2.5 if matches else 0.05
+            return 3.0 if matches else 0.03  # Even stronger
         elif answer == 'probably':
-            return 1.5 if matches else 0.3
+            return 1.8 if matches else 0.25
         elif answer == 'dontknow':
             return 1.0
         elif answer == 'probablynot':
-            return 0.3 if matches else 1.5
+            return 0.25 if matches else 1.8
         elif answer == 'no':
-            return 0.05 if matches else 2.5
+            return 0.03 if matches else 3.0  # Even stronger
         else:
             return 1.0
     
@@ -282,7 +311,7 @@ class InferenceEngine:
                 item.probability /= total_prob
     
     def _soft_filter_items(self):
-        """Soft filter items"""
+        """Soft filter items with more aggressive threshold"""
         if not self.current_game:
             return
         
@@ -291,6 +320,17 @@ class InferenceEngine:
         for item in self.current_game.items:
             if item.probability < threshold:
                 item.eliminated = True
+        
+        # Keep at least top 2 items
+        active_items = self.current_game.get_active_items()
+        if len(active_items) < 2:
+            sorted_items = sorted(
+                self.current_game.items, 
+                key=lambda x: x.probability, 
+                reverse=True
+            )
+            for i in range(min(2, len(sorted_items))):
+                sorted_items[i].eliminated = False
     
     def _calculate_context_score(self, question: Dict) -> float:
         """Calculate context score"""
@@ -318,7 +358,7 @@ class InferenceEngine:
         
         questions_asked = self.current_game.questions_asked
         max_questions = self.config['max_questions']
-        progress = questions_asked / max_questions
+        progress = questions_asked / max_questions if max_questions > 0 else 0
         
         if progress < 0.3:
             if question['attribute'] in ['continent', 'type', 'region']:
@@ -375,4 +415,4 @@ class InferenceEngine:
             'successful_guesses': success,
             'success_rate': (success / games * 100) if games > 0 else 0,
             'average_questions': self.session_stats['average_questions']
-        }
+            }
