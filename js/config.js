@@ -21,7 +21,7 @@ const CONFIG = {
 
     // Game Configuration
     GAME: {
-        MAX_QUESTIONS: 25,
+        MAX_QUESTIONS: 15,
         MIN_CONFIDENCE_TO_GUESS: 90,  // Increased from 85 to 90
         THINKING_DURATION: 3000,
         QUESTION_DELAY: 500,           // Increased for smoother UX
