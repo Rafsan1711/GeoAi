@@ -1,4 +1,4 @@
-// game.js - Game State Management with Advanced Backend Integration
+// game.js - Game State Management with Enhanced Question Bank
 
 class Game {
     constructor() {
@@ -19,26 +19,18 @@ class Game {
         this.questionBank = {};
     }
 
-    /**
-     * Initialize game data
-     */
     async initialize() {
         try {
-            // Show loading screen
             const loadingScreen = document.getElementById('loadingScreen');
             if (loadingScreen) {
                 loadingScreen.classList.remove('hidden');
             }
 
-            // Load all data
             await apiHandler.loadAllData();
-            
-            // Load question banks
             await this.loadQuestionBanks();
             
             this.dataLoaded = true;
             
-            // Hide loading screen
             if (loadingScreen) {
                 setTimeout(() => {
                     loadingScreen.classList.add('hidden');
@@ -47,7 +39,6 @@ class Game {
 
             console.log('✅ Game initialized successfully');
             
-            // Show backend status
             if (CONFIG.FEATURES.USE_PYTHON_API) {
                 if (apiHandler.backendHealthy) {
                     console.log('🤖 Backend AI: ACTIVE');
@@ -62,228 +53,230 @@ class Game {
         }
     }
 
-    /**
-     * Load question banks for all categories
-     */
     async loadQuestionBanks() {
         this.questionBank = {
             country: [
-                // Continent questions (highest weight)
-                { question: "Is it located in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
-                { question: "Is it located in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
-                { question: "Is it located in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
-                { question: "Is it located in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
-                { question: "Is it located in South America?", attribute: "continent", value: "southamerica", weight: 1.0 },
-                { question: "Is it located in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
+                // CONTINENT - Highest Priority
+                { question: "Is it in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
+                { question: "Is it in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
+                { question: "Is it in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
+                { question: "Is it in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
+                { question: "Is it in South America?", attribute: "continent", value: "southamerica", weight: 1.0 },
+                { question: "Is it in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
                 
-                // Geographic features
-                { question: "Does this country have a coastline?", attribute: "hasCoast", value: true, weight: 0.7 },
-                { question: "Does it have major mountain ranges?", attribute: "hasMountains", value: true, weight: 0.6 },
-                { question: "Is it an island nation?", attribute: "isIsland", value: true, weight: 0.8 },
-                { question: "Is it a landlocked country?", attribute: "landlocked", value: true, weight: 0.8 },
+                // REGION - Very Important
+                { question: "Is it in South Asia?", attribute: "region", value: "south", weight: 0.95 },
+                { question: "Is it in East Asia?", attribute: "region", value: "east", weight: 0.95 },
+                { question: "Is it in Western Europe?", attribute: "region", value: "west", weight: 0.95 },
+                { question: "Is it in the Middle East?", attribute: "region", value: "middle", weight: 0.95 },
+                { question: "Is it in Central region?", attribute: "region", value: "central", weight: 0.9 },
+                { question: "Is it in Northern region?", attribute: "region", value: "north", weight: 0.9 },
+                { question: "Is it in the Caribbean?", attribute: "region", value: "caribbean", weight: 0.95 },
                 
-                // Population
-                { question: "Does it have a very large population (over 200 million)?", attribute: "population", value: "verylarge", weight: 0.85 },
-                { question: "Does it have a large population (50-200 million)?", attribute: "population", value: "large", weight: 0.7 },
+                // GEOGRAPHIC FEATURES
+                { question: "Does it have a coastline?", attribute: "hasCoast", value: true, weight: 0.75 },
+                { question: "Is it landlocked?", attribute: "landlocked", value: true, weight: 0.85 },
+                { question: "Is it an island nation?", attribute: "isIsland", value: true, weight: 0.9 },
+                { question: "Does it have major mountains?", attribute: "hasMountains", value: true, weight: 0.7 },
                 
-                // Climate
-                { question: "Does it have a tropical climate?", attribute: "climate", value: "tropical", weight: 0.65 },
-                { question: "Does it have a desert climate?", attribute: "climate", value: "desert", weight: 0.75 },
-                { question: "Does it have a temperate climate?", attribute: "climate", value: "temperate", weight: 0.6 },
-                { question: "Does it have a cold climate?", attribute: "climate", value: "cold", weight: 0.7 },
+                // POPULATION SIZE
+                { question: "Does it have a very large population (over 200M)?", attribute: "population", value: "verylarge", weight: 0.9 },
+                { question: "Does it have a large population (50-200M)?", attribute: "population", value: "large", weight: 0.8 },
+                { question: "Does it have a medium population (10-50M)?", attribute: "population", value: "medium", weight: 0.7 },
+                { question: "Does it have a small population (under 10M)?", attribute: "population", value: "small", weight: 0.75 },
                 
-                // Famous attributes
-                { question: "Is it famous for cricket?", attribute: "famousFor", value: "cricket", weight: 0.9 },
-                { question: "Is it famous for technology and innovation?", attribute: "famousFor", value: "technology", weight: 0.8 },
-                { question: "Is it famous for the pyramids?", attribute: "famousFor", value: "pyramids", weight: 0.95 },
-                { question: "Is it famous for football/soccer?", attribute: "famousFor", value: "football", weight: 0.85 },
-                { question: "Is it famous for Bollywood?", attribute: "famousFor", value: "bollywood", weight: 0.95 },
-                { question: "Is it famous for the Eiffel Tower?", attribute: "famousFor", value: "eiffeltower", weight: 0.95 },
-                { question: "Is it famous for the Great Wall?", attribute: "famousFor", value: "greatwall", weight: 0.95 },
-                { question: "Is it famous for unique wildlife like kangaroos?", attribute: "famousFor", value: "wildlife", weight: 0.9 },
+                // CLIMATE
+                { question: "Does it have a tropical climate?", attribute: "climate", value: "tropical", weight: 0.75 },
+                { question: "Does it have a desert climate?", attribute: "climate", value: "desert", weight: 0.85 },
+                { question: "Does it have a temperate climate?", attribute: "climate", value: "temperate", weight: 0.7 },
+                { question: "Does it have a cold/freezing climate?", attribute: "climate", value: "cold", weight: 0.8 },
+                { question: "Does it have a cold/freezing climate?", attribute: "climate", value: "freezing", weight: 0.85 },
+                { question: "Does it have a Mediterranean climate?", attribute: "climate", value: "mediterranean", weight: 0.8 },
+                { question: "Does it have a varied climate?", attribute: "climate", value: "varied", weight: 0.6 },
                 
-                // Language
-                { question: "Is Bengali the primary language?", attribute: "language", value: "bengali", weight: 0.95 },
-                { question: "Is English the primary language?", attribute: "language", value: "english", weight: 0.7 },
-                { question: "Is French the primary language?", attribute: "language", value: "french", weight: 0.9 },
+                // GOVERNMENT TYPE
+                { question: "Is it a republic?", attribute: "government", value: "republic", weight: 0.7 },
+                { question: "Is it a monarchy?", attribute: "government", value: "monarchy", weight: 0.85 },
+                { question: "Is it a dictatorship?", attribute: "government", value: "dictatorship", weight: 0.9 },
+                
+                // RELIGION
+                { question: "Is Islam the main religion?", attribute: "mainReligion", value: "islam", weight: 0.8 },
+                { question: "Is Christianity the main religion?", attribute: "mainReligion", value: "christianity", weight: 0.75 },
+                { question: "Is Hinduism the main religion?", attribute: "mainReligion", value: "hinduism", weight: 0.9 },
+                { question: "Is Buddhism the main religion?", attribute: "mainReligion", value: "buddhism", weight: 0.85 },
+                { question: "Is it a secular country?", attribute: "mainReligion", value: "secular", weight: 0.8 },
+                
+                // LANGUAGE - Super Specific
+                { question: "Is Bengali the primary language?", attribute: "language", value: "bengali", weight: 0.98 },
+                { question: "Is English the primary language?", attribute: "language", value: "english", weight: 0.75 },
                 { question: "Is Arabic the primary language?", attribute: "language", value: "arabic", weight: 0.8 },
                 { question: "Is Chinese the primary language?", attribute: "language", value: "chinese", weight: 0.9 },
-                { question: "Is Spanish the primary language?", attribute: "language", value: "spanish", weight: 0.85 },
+                { question: "Is Spanish the primary language?", attribute: "language", value: "spanish", weight: 0.8 },
+                { question: "Is French the primary language?", attribute: "language", value: "french", weight: 0.85 },
+                { question: "Is Portuguese the primary language?", attribute: "language", value: "portuguese", weight: 0.9 },
+                { question: "Is Russian the primary language?", attribute: "language", value: "russian", weight: 0.9 },
+                { question: "Is Japanese the primary language?", attribute: "language", value: "japanese", weight: 0.98 },
+                { question: "Is Hindi the primary language?", attribute: "language", value: "hindi", weight: 0.95 },
+                { question: "Is German the primary language?", attribute: "language", value: "german", weight: 0.9 },
+                { question: "Is Italian the primary language?", attribute: "language", value: "italian", weight: 0.95 },
                 
-                // Regional
-                { question: "Is it in South Asia?", attribute: "region", value: "south", weight: 0.75 },
-                { question: "Is it in East Asia?", attribute: "region", value: "east", weight: 0.75 },
-                { question: "Is it in Western Europe?", attribute: "region", value: "west", weight: 0.75 },
-                { question: "Is it in the Middle East?", attribute: "region", value: "middle", weight: 0.8 }
+                // FAMOUS FOR - Array Questions
+                { question: "Is it famous for cricket?", attribute: "famousFor", value: "cricket", weight: 0.95 },
+                { question: "Is it famous for football/soccer?", attribute: "famousFor", value: "football", weight: 0.85 },
+                { question: "Is it famous for technology/innovation?", attribute: "famousFor", value: "technology", weight: 0.85 },
+                { question: "Is it famous for Bollywood?", attribute: "famousFor", value: "bollywood", weight: 0.98 },
+                { question: "Is it famous for anime?", attribute: "famousFor", value: "anime", weight: 0.98 },
+                { question: "Is it famous for K-pop?", attribute: "famousFor", value: "kpop", weight: 0.98 },
+                { question: "Is it famous for oil/petroleum?", attribute: "famousFor", value: "oil", weight: 0.9 },
+                { question: "Is it famous for wine?", attribute: "famousFor", value: "wine", weight: 0.9 },
+                { question: "Is it famous for coffee?", attribute: "famousFor", value: "coffee", weight: 0.9 },
+                { question: "Is it famous for pyramids?", attribute: "famousFor", value: "pyramids", weight: 0.98 },
+                { question: "Is it famous for the Great Wall?", attribute: "famousFor", value: "great wall", weight: 0.98 },
+                { question: "Is it famous for the Eiffel Tower?", attribute: "famousFor", value: "eiffel tower", weight: 0.98 },
+                { question: "Is it famous for kangaroos?", attribute: "famousFor", value: "wildlife", weight: 0.95 },
+                { question: "Is it famous for safari?", attribute: "famousFor", value: "safari", weight: 0.9 },
+                { question: "Is it famous for sushi?", attribute: "famousFor", value: "sushi", weight: 0.95 },
+                { question: "Is it famous for pasta/pizza?", attribute: "famousFor", value: "pasta", weight: 0.95 },
+                { question: "Is it famous for tacos?", attribute: "famousFor", value: "tacos", weight: 0.95 },
+                { question: "Is it famous for the Amazon rainforest?", attribute: "famousFor", value: "amazon rainforest", weight: 0.98 },
+                { question: "Is it famous for Machu Picchu?", attribute: "famousFor", value: "machu picchu", weight: 0.98 },
+                { question: "Is it famous for chocolate?", attribute: "famousFor", value: "chocolate", weight: 0.9 },
+                { question: "Is it famous for beer?", attribute: "famousFor", value: "beer", weight: 0.85 },
+                { question: "Is it famous for vodka?", attribute: "famousFor", value: "vodka", weight: 0.95 },
+                { question: "Is it famous for maple syrup?", attribute: "famousFor", value: "maple syrup", weight: 0.98 },
+                { question: "Is it famous for fjords?", attribute: "famousFor", value: "fjords", weight: 0.95 },
+                { question: "Is it famous for Vikings?", attribute: "famousFor", value: "vikings", weight: 0.9 },
+                { question: "Is it famous for tango?", attribute: "famousFor", value: "tango", weight: 0.95 },
+                { question: "Is it famous for cannabis/marijuana?", attribute: "famousFor", value: "cannabis", weight: 0.9 },
+                { question: "Is it famous for cigars?", attribute: "famousFor", value: "cigars", weight: 0.95 },
+                { question: "Is it famous for diamonds?", attribute: "famousFor", value: "diamonds", weight: 0.9 },
+                { question: "Is it famous for gold?", attribute: "famousFor", value: "gold", weight: 0.85 },
+                { question: "Is it famous for tea?", attribute: "famousFor", value: "tea", weight: 0.9 },
+                { question: "Is it famous for spices?", attribute: "famousFor", value: "spices", weight: 0.9 },
+                { question: "Is it famous for tulips?", attribute: "famousFor", value: "tulips", weight: 0.98 },
+                { question: "Is it famous for watches?", attribute: "famousFor", value: "watches", weight: 0.95 },
+                { question: "Is it famous for LEGO?", attribute: "famousFor", value: "lego", weight: 0.98 },
+                { question: "Is it famous for IKEA?", attribute: "famousFor", value: "ikea", weight: 0.98 },
+                { question: "Is it famous for reggae music?", attribute: "famousFor", value: "reggae", weight: 0.98 },
+                { question: "Is it famous for Hollywood?", attribute: "famousFor", value: "hollywood", weight: 0.98 },
+                
+                // DRIVE SIDE
+                { question: "Do they drive on the left side?", attribute: "driveSide", value: "left", weight: 0.7 },
+                
+                // FLAG COLORS - Array
+                { question: "Does the flag have red color?", attribute: "flagColors", value: "red", weight: 0.6 },
+                { question: "Does the flag have green color?", attribute: "flagColors", value: "green", weight: 0.65 },
+                { question: "Does the flag have blue color?", attribute: "flagColors", value: "blue", weight: 0.6 },
+                { question: "Does the flag have white color?", attribute: "flagColors", value: "white", weight: 0.55 },
+                { question: "Does the flag have yellow/gold color?", attribute: "flagColors", value: "yellow", weight: 0.65 },
+                { question: "Does the flag have black color?", attribute: "flagColors", value: "black", weight: 0.7 },
+                
+                // NEIGHBORS - Very Specific
+                { question: "Does it border India?", attribute: "neighbors", value: "india", weight: 0.9 },
+                { question: "Does it border China?", attribute: "neighbors", value: "china", weight: 0.85 },
+                { question: "Does it border Russia?", attribute: "neighbors", value: "russia", weight: 0.85 },
+                { question: "Does it border Germany?", attribute: "neighbors", value: "germany", weight: 0.85 },
+                { question: "Does it border France?", attribute: "neighbors", value: "france", weight: 0.85 },
+                { question: "Does it border Brazil?", attribute: "neighbors", value: "brazil", weight: 0.85 },
+                { question: "Does it border the USA?", attribute: "neighbors", value: "usa", weight: 0.9 },
+                
+                // EXPORTS - Economic Questions
+                { question: "Does it export oil/petroleum?", attribute: "exports", value: "oil", weight: 0.85 },
+                { question: "Does it export electronics?", attribute: "exports", value: "electronics", weight: 0.8 },
+                { question: "Does it export cars?", attribute: "exports", value: "cars", weight: 0.85 },
+                { question: "Does it export textiles/clothing?", attribute: "exports", value: "textiles", weight: 0.75 },
+                { question: "Does it export coffee?", attribute: "exports", value: "coffee", weight: 0.9 },
+                { question: "Does it export gold?", attribute: "exports", value: "gold", weight: 0.85 },
+                { question: "Does it export diamonds?", attribute: "exports", value: "diamonds", weight: 0.9 }
             ],
             
             city: [
-                // Capital status
                 { question: "Is it a capital city?", attribute: "isCapital", value: true, weight: 0.85 },
-                
-                // Continent
-                { question: "Is it located in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
-                { question: "Is it located in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
-                { question: "Is it located in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
-                { question: "Is it located in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
-                { question: "Is it located in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
-                
-                // Geographic features
+                { question: "Is it in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
+                { question: "Is it in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
+                { question: "Is it in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
+                { question: "Is it in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
+                { question: "Is it in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
                 { question: "Does a major river run through it?", attribute: "hasRiver", value: true, weight: 0.7 },
-                { question: "Does it have a metro/subway system?", attribute: "hasMetro", value: true, weight: 0.6 },
-                { question: "Is it a coastal city?", attribute: "isCoastal", value: true, weight: 0.65 },
-                
-                // Size
-                { question: "Is it a very large city (over 10 million people)?", attribute: "size", value: "verylarge", weight: 0.8 },
-                { question: "Is it a large city (3-10 million people)?", attribute: "size", value: "large", weight: 0.65 },
-                
-                // Climate
-                { question: "Does it have a tropical climate?", attribute: "climate", value: "tropical", weight: 0.7 },
-                { question: "Does it have a desert climate?", attribute: "climate", value: "desert", weight: 0.85 },
-                { question: "Does it have a temperate climate?", attribute: "climate", value: "temperate", weight: 0.6 },
-                
-                // Famous landmarks
+                { question: "Does it have a metro/subway?", attribute: "hasMetro", value: true, weight: 0.65 },
+                { question: "Is it a very large city (10M+)?", attribute: "size", value: "verylarge", weight: 0.85 },
+                { question: "Is it a large city (3-10M)?", attribute: "size", value: "large", weight: 0.7 },
+                { question: "Does it have tropical climate?", attribute: "climate", value: "tropical", weight: 0.75 },
+                { question: "Does it have desert climate?", attribute: "climate", value: "desert", weight: 0.85 },
                 { question: "Is it famous for the Eiffel Tower?", attribute: "famousFor", value: "eiffeltower", weight: 0.98 },
-                { question: "Is it famous for cutting-edge technology?", attribute: "famousFor", value: "technology", weight: 0.85 },
-                { question: "Is it famous for the Burj Khalifa?", attribute: "famousFor", value: "burjkhalifa", weight: 0.98 },
-                { question: "Is it famous for the Statue of Liberty?", attribute: "famousFor", value: "statueofliberty", weight: 0.98 },
-                { question: "Is it famous for Big Ben?", attribute: "famousFor", value: "bigben", weight: 0.95 },
-                { question: "Is it famous for the Opera House?", attribute: "famousFor", value: "operahouse", weight: 0.98 },
-                { question: "Is it near the pyramids?", attribute: "famousFor", value: "pyramids", weight: 0.95 },
-                
-                // Country
-                { question: "Is it located in France?", attribute: "country", value: "france", weight: 0.9 },
-                { question: "Is it located in Japan?", attribute: "country", value: "japan", weight: 0.9 },
-                { question: "Is it located in the United States?", attribute: "country", value: "usa", weight: 0.85 },
-                { question: "Is it located in the United Kingdom?", attribute: "country", value: "uk", weight: 0.9 }
+                { question: "Is it famous for technology?", attribute: "famousFor", value: "technology", weight: 0.85 },
+                { question: "Is it famous for rickshaws?", attribute: "famousFor", value: "rickshaw", weight: 0.95 },
+                { question: "Is it famous for Burj Khalifa?", attribute: "famousFor", value: "burjkhalifa", weight: 0.98 },
+                { question: "Is it in Bangladesh?", attribute: "country", value: "bangladesh", weight: 0.95 },
+                { question: "Is it in France?", attribute: "country", value: "france", weight: 0.9 },
+                { question: "Is it in Japan?", attribute: "country", value: "japan", weight: 0.9 },
+                { question: "Is it in the USA?", attribute: "country", value: "usa", weight: 0.85 }
             ],
             
             place: [
-                // Type
-                { question: "Is it a monument or memorial?", attribute: "type", value: "monument", weight: 0.8 },
-                { question: "Is it a temple or religious structure?", attribute: "type", value: "temple", weight: 0.85 },
-                { question: "Is it an amphitheater or arena?", attribute: "type", value: "amphitheater", weight: 0.9 },
+                { question: "Is it a monument?", attribute: "type", value: "monument", weight: 0.8 },
+                { question: "Is it a temple?", attribute: "type", value: "temple", weight: 0.85 },
                 { question: "Is it ancient ruins?", attribute: "type", value: "ruins", weight: 0.85 },
-                { question: "Is it a tower?", attribute: "type", value: "tower", weight: 0.85 },
-                { question: "Is it a statue?", attribute: "type", value: "statue", weight: 0.85 },
-                
-                // Continent
-                { question: "Is it located in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
-                { question: "Is it located in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
-                { question: "Is it located in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
-                { question: "Is it located in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
-                { question: "Is it located in South America?", attribute: "continent", value: "southamerica", weight: 1.0 },
-                
-                // Age
-                { question: "Is it from ancient times (over 2000 years old)?", attribute: "age", value: "ancient", weight: 0.85 },
-                { question: "Is it relatively old (500-2000 years)?", attribute: "age", value: "old", weight: 0.7 },
-                { question: "Is it modern (less than 200 years old)?", attribute: "age", value: "modern", weight: 0.75 },
-                { question: "Is it a natural formation?", attribute: "age", value: "natural", weight: 0.9 },
-                
-                // Famous for
-                { question: "Is it famous as a symbol of love?", attribute: "famousFor", value: "love", weight: 0.98 },
-                { question: "Is it associated with pharaohs and ancient Egypt?", attribute: "famousFor", value: "pharaohs", weight: 0.95 },
-                { question: "Is it famous for gladiator battles?", attribute: "famousFor", value: "gladiators", weight: 0.98 },
-                { question: "Is it associated with the Inca civilization?", attribute: "famousFor", value: "incas", weight: 0.98 },
-                { question: "Is it an iconic symbol of Paris?", attribute: "famousFor", value: "paris", weight: 0.98 },
-                { question: "Is it a symbol of freedom?", attribute: "famousFor", value: "freedom", weight: 0.98 },
-                
-                // Nature
-                { question: "Is it a completely natural place (not man-made)?", attribute: "isNatural", value: true, weight: 0.85 },
-                { question: "Is it a man-made structure?", attribute: "isNatural", value: false, weight: 0.7 },
-                
-                // Country
-                { question: "Is it located in India?", attribute: "country", value: "india", weight: 0.9 },
-                { question: "Is it located in Egypt?", attribute: "country", value: "egypt", weight: 0.95 },
-                { question: "Is it located in Italy?", attribute: "country", value: "italy", weight: 0.9 },
-                { question: "Is it located in Peru?", attribute: "country", value: "peru", weight: 0.98 },
-                { question: "Is it located in the United States?", attribute: "country", value: "usa", weight: 0.85 },
-                { question: "Is it located in France?", attribute: "country", value: "france", weight: 0.95 },
-                { question: "Is it located in China?", attribute: "country", value: "china", weight: 0.95 }
+                { question: "Is it a natural forest?", attribute: "type", value: "forest", weight: 0.85 },
+                { question: "Is it in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
+                { question: "Is it in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
+                { question: "Is it ancient (2000+ years)?", attribute: "age", value: "ancient", weight: 0.85 },
+                { question: "Is it natural?", attribute: "isNatural", value: true, weight: 0.85 },
+                { question: "Is it famous for love?", attribute: "famousFor", value: "love", weight: 0.98 },
+                { question: "Is it in India?", attribute: "country", value: "india", weight: 0.9 }
             ]
         };
     }
 
-    /**
-     * Show welcome screen
-     */
     showWelcomeScreen() {
         this.hideAllScreens();
         document.getElementById('welcomeScreen').classList.add('active');
     }
 
-    /**
-     * Show category selection screen
-     */
     showCategoryScreen() {
         this.hideAllScreens();
         document.getElementById('categoryScreen').classList.add('active');
     }
 
-    /**
-     * Show thinking screen
-     */
     showThinkingScreen(category) {
         this.hideAllScreens();
-        
         const categoryNames = {
             'country': 'country',
             'city': 'city',
             'place': 'historic place'
         };
-        
         document.getElementById('thinkingCategory').textContent = categoryNames[category];
         document.getElementById('thinkingScreen').classList.add('active');
     }
 
-    /**
-     * Show question screen
-     */
     showQuestionScreen() {
         this.hideAllScreens();
         document.getElementById('questionScreen').classList.add('active');
     }
 
-    /**
-     * Show result screen
-     */
     showResultScreen() {
         this.hideAllScreens();
         document.getElementById('resultScreen').classList.add('active');
-        
-        // Trigger confetti animation
         if (CONFIG.UI.ENABLE_ANIMATIONS) {
             animationController.createConfetti();
         }
     }
 
-    /**
-     * Show engine info screen
-     */
     showEngineScreen() {
         this.hideAllScreens();
         document.getElementById('engineScreen').classList.add('active');
     }
 
-    /**
-     * Close engine screen
-     */
     closeEngineScreen() {
         this.showWelcomeScreen();
     }
 
-    /**
-     * Hide all screens
-     */
     hideAllScreens() {
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
         });
     }
 
-    /**
-     * Start a new game (WITH BACKEND SESSION SUPPORT)
-     */
     async startGame(category) {
         if (!this.dataLoaded) {
             alert('Game data is still loading. Please wait...');
@@ -298,20 +291,17 @@ class Game {
         this.state.usingBackend = false;
         this.state.sessionId = null;
         
-        // Get items for category
         const items = apiHandler.getData(category);
         if (items.length === 0) {
             alert('No data available for this category.');
             return;
         }
 
-        // Initialize items with probabilities
         this.state.possibleItems = items.map(item => ({
             ...item,
             probability: 1.0
         }));
         
-        // Try to start backend session
         if (CONFIG.FEATURES.USE_SESSION_API && apiHandler.backendHealthy) {
             try {
                 const sessionResponse = await apiHandler.startGameSession(
@@ -332,21 +322,15 @@ class Game {
             }
         }
         
-        // Show thinking animation
         this.showThinkingScreen(category);
         
-        // Wait for thinking animation then start asking
         setTimeout(() => {
             this.showQuestionScreen();
             this.askNextQuestion();
         }, CONFIG.GAME.THINKING_DURATION);
     }
 
-    /**
-     * Ask the next question (WITH BACKEND SUPPORT)
-     */
     async askNextQuestion() {
-        // If using backend session, process through backend
         if (this.state.usingBackend && apiHandler.sessionId) {
             const question = await apiHandler.getNextQuestion(
                 this.state.category,
@@ -365,7 +349,6 @@ class Game {
 
             this.updateQuestionUI(question);
         } else {
-            // Local algorithm
             if (localAlgorithm.shouldStopAsking(
                 this.state.possibleItems,
                 this.state.questionNumber,
@@ -394,11 +377,7 @@ class Game {
         }
     }
 
-    /**
-     * Update question UI
-     */
     updateQuestionUI(question) {
-        // Update question text with animation
         const questionText = document.getElementById('questionText');
         questionText.style.opacity = '0';
         
@@ -407,13 +386,11 @@ class Game {
             questionText.style.opacity = '1';
         }, 150);
 
-        // Update progress
         const progress = (this.state.questionNumber / this.state.maxQuestions) * 100;
         document.getElementById('progressFill').style.width = progress + '%';
         document.getElementById('progressText').textContent = 
             `Question ${this.state.questionNumber} / ${this.state.maxQuestions}`;
 
-        // Update confidence
         const confidence = localAlgorithm.calculateConfidence(this.state.possibleItems);
         document.getElementById('confidenceValue').textContent = confidence + '%';
         
@@ -423,29 +400,21 @@ class Game {
         }
     }
 
-    /**
-     * Handle user answer (WITH BACKEND SUPPORT)
-     */
     async answerQuestion(answer) {
-        // Store answer
         this.state.answers.push({
             question: this.state.currentQuestion.question,
             answer: answer
         });
 
-        // Show loading state
         const questionText = document.getElementById('questionText');
         if (questionText) {
             questionText.style.opacity = '0.5';
         }
 
-        // Process answer through backend if using session
         if (this.state.usingBackend && apiHandler.sessionId) {
             try {
                 const response = await apiHandler.processAnswer(answer);
-                
                 if (response) {
-                    // Backend handled the update
                     console.log('🤖 Backend processed answer');
                 }
             } catch (error) {
@@ -454,7 +423,6 @@ class Game {
             }
         }
 
-        // Update locally (for display or if backend not used)
         if (!this.state.usingBackend) {
             this.state.possibleItems = await apiHandler.filterItems(
                 this.state.possibleItems,
@@ -463,31 +431,24 @@ class Game {
             );
         }
 
-        // Reset loading state
         if (questionText) {
             questionText.style.opacity = '1';
         }
 
-        // Debug log
         if (CONFIG.DEBUG.ENABLED) {
             console.log('Remaining items:', this.state.possibleItems.length);
             console.log('Top 3:', this.state.possibleItems.slice(0, 3).map(i => i.name));
         }
 
-        // Ask next question after delay
         setTimeout(() => {
             this.askNextQuestion();
         }, CONFIG.GAME.QUESTION_DELAY);
     }
 
-    /**
-     * Show final result (WITH BACKEND SUPPORT)
-     */
     async showResult() {
         let prediction = null;
         let confidence = 0;
 
-        // Get prediction from backend if using session
         if (this.state.usingBackend && apiHandler.sessionId) {
             try {
                 const response = await apiHandler.getPrediction(
@@ -505,7 +466,6 @@ class Game {
             }
         }
 
-        // Fallback to local
         if (!prediction) {
             prediction = localAlgorithm.getBestGuess(this.state.possibleItems);
             confidence = localAlgorithm.calculateConfidence(this.state.possibleItems);
@@ -524,7 +484,6 @@ class Game {
             }
         }
 
-        // Update result UI
         document.getElementById('resultEmoji').textContent = prediction.emoji || '🎯';
         document.getElementById('resultName').textContent = prediction.name;
         document.getElementById('resultInfo').innerHTML = `
@@ -535,19 +494,11 @@ class Game {
         document.getElementById('questionsAsked').textContent = this.state.questionNumber;
         document.getElementById('possibleMatches').textContent = this.state.possibleItems.length;
 
-        // Animate confidence circle
         this.animateConfidenceCircle(confidence);
-
-        // End session
         apiHandler.endSession();
-
-        // Show result screen
         this.showResultScreen();
     }
 
-    /**
-     * Animate confidence circle
-     */
     animateConfidenceCircle(confidence) {
         const circle = document.getElementById('confidenceCircle');
         const circumference = 2 * Math.PI * 54;
@@ -563,9 +514,6 @@ class Game {
         }
     }
 
-    /**
-     * Play again with same category
-     */
     playAgain() {
         if (this.state.category) {
             this.startGame(this.state.category);
@@ -574,9 +522,6 @@ class Game {
         }
     }
 
-    /**
-     * Reset game completely
-     */
     resetGame() {
         this.state = {
             category: null,
@@ -595,5 +540,4 @@ class Game {
     }
 }
 
-// Create global game instance
 const game = new Game();
