@@ -1,4 +1,4 @@
-// algorithm.js - Advanced AI Algorithm using Information Gain and Bayesian Inference
+// algorithm.js - Advanced AI Algorithm (Updated for Rich Data & Arrays)
 
 class AIEngine {
     constructor() {
@@ -12,8 +12,32 @@ class AIEngine {
     }
 
     /**
-     * Calculate information gain for a question
-     * Uses entropy-based calculation to find the most informative question
+     * Helper: Check if an item's attribute matches the question's value.
+     * Handles Strings, Booleans, and Arrays (Lists).
+     */
+    checkMatch(itemValue, questionValue) {
+        // Handle undefined or null
+        if (itemValue === undefined || itemValue === null) return false;
+
+        // 1. If item attribute is an Array (e.g., famousFor: ['Cricket', 'Tea'])
+        if (Array.isArray(itemValue)) {
+            // Case-insensitive check if the array includes the question value
+            return itemValue.some(v => 
+                String(v).toLowerCase() === String(questionValue).toLowerCase()
+            );
+        }
+
+        // 2. If item attribute is a String
+        if (typeof itemValue === 'string') {
+            return itemValue.toLowerCase() === String(questionValue).toLowerCase();
+        }
+
+        // 3. If item attribute is Boolean or Number
+        return itemValue === questionValue;
+    }
+
+    /**
+     * Calculate Information Gain (Entropy-based)
      */
     calculateInformationGain(question, possibleItems) {
         if (possibleItems.length === 0) return 0;
@@ -22,7 +46,8 @@ class AIEngine {
         let noCount = 0;
 
         possibleItems.forEach(item => {
-            if (item[question.attribute] === question.value) {
+            // Use the smart checkMatch function
+            if (this.checkMatch(item[question.attribute], question.value)) {
                 yesCount++;
             } else {
                 noCount++;
@@ -30,29 +55,29 @@ class AIEngine {
         });
 
         const total = yesCount + noCount;
-        
         if (total === 0) return 0;
 
-        // Calculate entropy - we want questions that split the data most evenly
         const yesRatio = yesCount / total;
         const noRatio = noCount / total;
 
-        // Prefer questions that create a more balanced split
-        // The closer to 0.5, the better the split
+        // We want questions that split the data as close to 50/50 as possible
         const balance = Math.min(yesRatio, noRatio);
         
-        // Factor in the question's inherent weight (importance)
-        const weightedGain = balance * question.weight;
+        // Apply question weight (importance)
+        const weightedGain = balance * (question.weight || 1.0);
 
         return weightedGain;
     }
 
     /**
-     * Select the best next question to ask
-     * This uses a greedy approach to maximize information gain
+     * Select the Best Question to ask next
      */
     selectBestQuestion(category, askedQuestions, possibleItems) {
-        const availableQuestions = questionBank[category].filter(
+        // Access questionBank from the global game instance
+        const questions = game.questionBank[category] || [];
+
+        // Filter out questions already asked
+        const availableQuestions = questions.filter(
             q => !askedQuestions.includes(q.question)
         );
 
@@ -61,11 +86,15 @@ class AIEngine {
         let bestQuestion = null;
         let maxGain = -1;
 
+        // Find the question with highest information gain
         availableQuestions.forEach(question => {
             const gain = this.calculateInformationGain(question, possibleItems);
             
-            if (gain > maxGain) {
-                maxGain = gain;
+            // Add a tiny random factor to prevent asking same order every time if gains are equal
+            const randomFactor = Math.random() * 0.01;
+            
+            if ((gain + randomFactor) > maxGain) {
+                maxGain = gain + randomFactor;
                 bestQuestion = question;
             }
         });
@@ -74,28 +103,27 @@ class AIEngine {
     }
 
     /**
-     * Update item probabilities based on answer using Bayesian inference
+     * Update Probabilities based on User Answer (Bayesian Inference)
      */
     updateProbabilities(possibleItems, question, answer) {
-        const weight = this.answerWeights[answer];
-        
         return possibleItems.map(item => {
-            const matches = item[question.attribute] === question.value;
+            const matches = this.checkMatch(item[question.attribute], question.value);
             
-            // Calculate new probability
             let probability = item.probability || 1.0;
             
             if (answer === 'yes') {
-                probability = matches ? probability * 1.2 : probability * 0.1;
+                // If user says YES, boost matching items, penalize non-matching
+                probability = matches ? probability * 2.0 : probability * 0.01;
             } else if (answer === 'probably') {
-                probability = matches ? probability * 1.1 : probability * 0.4;
+                probability = matches ? probability * 1.5 : probability * 0.25;
             } else if (answer === 'dontknow') {
-                // No change for "don't know"
+                // Small penalty for everything to account for uncertainty
                 probability = probability * 0.9;
             } else if (answer === 'probablynot') {
-                probability = matches ? probability * 0.4 : probability * 1.1;
+                probability = matches ? probability * 0.25 : probability * 1.5;
             } else if (answer === 'no') {
-                probability = matches ? probability * 0.1 : probability * 1.2;
+                // If user says NO, penalize matching items, boost non-matching
+                probability = matches ? probability * 0.01 : probability * 2.0;
             }
 
             return {
@@ -106,116 +134,68 @@ class AIEngine {
     }
 
     /**
-     * Filter items based on answer with weighted approach
+     * Filter Items and sort by probability
      */
     filterItems(possibleItems, question, answer) {
-        const weight = this.answerWeights[answer];
-
-        // Update probabilities first
+        // 1. Update Probabilities
         let items = this.updateProbabilities(possibleItems, question, answer);
 
-        // For strong answers (yes/no), we can filter more aggressively
-        if (answer === 'yes') {
-            // Keep items that match, but also keep some non-matching with low probability
-            items = items.filter(item => {
-                if (item[question.attribute] === question.value) return true;
-                return item.probability > 0.15; // Keep some unlikely candidates
-            });
-        } else if (answer === 'no') {
-            // Remove items that match, but keep some with very low probability
-            items = items.filter(item => {
-                if (item[question.attribute] !== question.value) return true;
-                return item.probability > 0.15; // Keep some unlikely candidates
-            });
-        } else if (answer === 'probably' || answer === 'probablynot') {
-            // For uncertain answers, keep all but lower some probabilities
-            // Already handled in updateProbabilities
-        }
-        // For 'dontknow', keep all items (probabilities slightly lowered)
+        // 2. Soft Filter (Remove items that are mathematically eliminated)
+        // We use a very low threshold (0.001) instead of 0 to allow for user error recovery
+        items = items.filter(item => item.probability > 0.0001);
 
-        // Sort by probability
-        items.sort((a, b) => (b.probability || 1) - (a.probability || 1));
+        // 3. Sort by Probability (Descending)
+        items.sort((a, b) => b.probability - a.probability);
 
         return items;
     }
 
     /**
-     * Calculate confidence in the current top guess
+     * Calculate Confidence Score (0-100%)
      */
     calculateConfidence(possibleItems) {
         if (possibleItems.length === 0) return 0;
-        if (possibleItems.length === 1) return 95;
+        if (possibleItems.length === 1) return 99;
 
-        // Normalize probabilities
-        const totalProb = possibleItems.reduce((sum, item) => sum + (item.probability || 1), 0);
-        const topProb = possibleItems[0].probability || 1;
+        const totalProb = possibleItems.reduce((sum, item) => sum + item.probability, 0);
+        const topProb = possibleItems[0].probability;
         
-        const confidence = Math.min(95, Math.round((topProb / totalProb) * 100));
+        if (totalProb === 0) return 0;
+
+        // Confidence is the top item's share of the total probability
+        const confidence = Math.min(99, Math.round((topProb / totalProb) * 100));
         
         return confidence;
     }
 
     /**
-     * Get the best guess from remaining items
+     * Get the current best guess
      */
     getBestGuess(possibleItems) {
         if (possibleItems.length === 0) return null;
-        
-        // Sort by probability
-        const sorted = [...possibleItems].sort((a, b) => 
-            (b.probability || 1) - (a.probability || 1)
-        );
-        
-        return sorted[0];
+        return possibleItems[0];
     }
 
     /**
-     * Check if we should stop asking questions
+     * Logic to decide if the AI should make a final guess
      */
     shouldStopAsking(possibleItems, questionsAsked, maxQuestions) {
-        // Stop if we have a clear winner
+        // 1. Only one item left
         if (possibleItems.length === 1) return true;
         
-        // Stop if we've asked max questions
+        // 2. Reached max questions
         if (questionsAsked >= maxQuestions) return true;
         
-        // Stop if confidence is very high
+        // 3. Confidence is very high
         const confidence = this.calculateConfidence(possibleItems);
-        if (confidence >= 90) return true;
+        if (confidence >= 93) return true;
         
-        // Stop if we have very few items left
-        if (possibleItems.length <= 2 && questionsAsked >= maxQuestions * 0.7) return true;
+        // 4. Few items left and we've asked enough questions
+        if (possibleItems.length <= 3 && questionsAsked >= 12 && confidence >= 80) return true;
         
         return false;
-    }
-
-    /**
-     * Initialize probabilities for all items
-     */
-    initializeItems(items) {
-        return items.map(item => ({
-            ...item,
-            probability: 1.0
-        }));
-    }
-
-    /**
-     * Get statistics about the current game state
-     */
-    getStats(possibleItems) {
-        const totalProb = possibleItems.reduce((sum, item) => sum + (item.probability || 1), 0);
-        
-        return {
-            itemCount: possibleItems.length,
-            topProbability: possibleItems.length > 0 ? possibleItems[0].probability : 0,
-            confidence: this.calculateConfidence(possibleItems),
-            normalized: possibleItems.map(item => ({
-                ...item,
-                normalizedProb: ((item.probability || 1) / totalProb * 100).toFixed(1)
-            }))
-        };
     }
 }
 
 // Create global AI engine instance
-const aiEngine = new AIEngine();
+const localAlgorithm = new AIEngine();
