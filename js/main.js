@@ -1,11 +1,11 @@
-// main.js - Application Entry Point
+// main.js - Ultra Application Entry Point
 
 /**
  * Initialize the application when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🌍 GeoAI - Mind Reading Geography Game');
-    console.log('Version 2.0 | Initializing...');
+    console.log('%c🌍 GeoAI Ultra - Maximum Accuracy Mode', 'font-size: 20px; font-weight: bold; color: #f59e0b');
+    console.log('%cVersion 3.0 Ultra | No Question Limits', 'font-size: 12px; color: #94a3b8');
 
     // Initialize animations
     animationController.init();
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show console welcome message
     showConsoleWelcome();
 
-    console.log('✅ Application ready!');
+    console.log('✅ Ultra Mode Ready!');
 });
 
 /**
@@ -81,6 +81,18 @@ function addKeyboardShortcuts() {
                 }
             }
         }
+
+        // Debug mode toggle (Ctrl+D)
+        if (e.ctrlKey && e.key === 'd') {
+            e.preventDefault();
+            toggleDebug();
+        }
+
+        // Show stats (Ctrl+S)
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            getStats();
+        }
     });
 }
 
@@ -128,10 +140,11 @@ function logPerformanceMetrics() {
             setTimeout(() => {
                 const perfData = performance.getEntriesByType('navigation')[0];
                 if (perfData) {
-                    console.log('⚡ Performance Metrics:', {
-                        loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
-                        domReady: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms',
-                        firstPaint: Math.round(performance.getEntriesByType('paint')[0]?.startTime || 0) + 'ms'
+                    console.log('%c⚡ Performance Metrics', 'font-weight: bold; color: #3b82f6');
+                    console.table({
+                        'Load Time': Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
+                        'DOM Ready': Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms',
+                        'First Paint': Math.round(performance.getEntriesByType('paint')[0]?.startTime || 0) + 'ms'
                     });
                 }
             }, 0);
@@ -144,17 +157,41 @@ function logPerformanceMetrics() {
  */
 function showConsoleWelcome() {
     console.log(`
-%c🌍 GeoAI - Mind Reading Geography Game
-%cVersion 2.0 | Built with Advanced AI Algorithm
-%cCommands:
+%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+%c🌍 GeoAI Ultra - Maximum Accuracy Mode
+%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+%c📊 ULTRA MODE FEATURES:
+• No question limits (up to 50 questions)
+• 99% confidence requirement
+• Advanced decision tree algorithm
+• Entropy-based information gain
+• Smart question pruning
+• 157+ countries with rich data
+
+%c🎮 KEYBOARD SHORTCUTS:
+• 1-5: Answer questions
+• Ctrl+D: Toggle debug mode
+• Ctrl+S: Show statistics
+• Esc: Exit current screen
+
+%c💻 DEVELOPER COMMANDS:
 • toggleDebug() - Toggle debug mode
-• exportGameData() - Export current game data
+• getStats() - Get detailed statistics
+• exportGameData() - Export current game
+• testAlgorithm() - Test algorithm performance
 • clearCache() - Clear API cache
-• getStats() - Get game statistics
+• reloadData() - Reload game data
+
+%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `,
-'font-size: 20px; font-weight: bold; color: #6366f1',
-'font-size: 12px; color: #94a3b8',
-'font-size: 11px; color: #64748b'
+'color: #6b7280',
+'font-size: 16px; font-weight: bold; color: #f59e0b',
+'color: #6b7280',
+'font-size: 12px; color: #10b981',
+'font-size: 12px; color: #3b82f6',
+'font-size: 11px; color: #8b5cf6',
+'color: #6b7280'
     );
 }
 
@@ -163,13 +200,24 @@ function showConsoleWelcome() {
  */
 window.exportGameData = () => {
     const data = {
+        mode: 'ultra',
         category: game.state.category,
         answers: game.state.answers,
         questionNumber: game.state.questionNumber,
+        maxQuestions: game.state.maxQuestions,
         finalGuess: localAlgorithm.getBestGuess(game.state.possibleItems),
         confidence: localAlgorithm.calculateConfidence(game.state.possibleItems),
         possibleItems: game.state.possibleItems.length,
-        timestamp: new Date().toISOString()
+        itemsData: game.state.possibleItems.slice(0, 10).map(i => ({
+            name: i.name,
+            probability: i.probability
+        })),
+        timestamp: new Date().toISOString(),
+        config: {
+            maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
+            minConfidence: CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS,
+            earlyStop: CONFIG.GAME.EARLY_STOP_CONFIDENCE
+        }
     };
 
     const json = JSON.stringify(data, null, 2);
@@ -177,7 +225,7 @@ window.exportGameData = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `geoai-game-${Date.now()}.json`;
+    a.download = `geoai-ultra-game-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
@@ -189,10 +237,16 @@ window.exportGameData = () => {
  */
 window.toggleDebug = () => {
     CONFIG.DEBUG.ENABLED = !CONFIG.DEBUG.ENABLED;
-    console.log('🛠️ Debug mode:', CONFIG.DEBUG.ENABLED ? 'ON' : 'OFF');
+    CONFIG.DEBUG.LOG_ALGORITHM = CONFIG.DEBUG.ENABLED;
+    CONFIG.DEBUG.LOG_QUESTIONS = CONFIG.DEBUG.ENABLED;
+    
+    console.log('%c🛠️ Debug mode: ' + (CONFIG.DEBUG.ENABLED ? 'ON' : 'OFF'), 
+        'font-weight: bold; color: ' + (CONFIG.DEBUG.ENABLED ? '#10b981' : '#ef4444'));
     
     if (CONFIG.DEBUG.ENABLED) {
         console.log('Current game state:', game.state);
+        console.log('Algorithm stage:', localAlgorithm.currentStage);
+        console.log('Asked attributes:', Array.from(localAlgorithm.askedAttributes));
     }
 };
 
@@ -209,41 +263,76 @@ window.clearCache = () => {
  */
 window.getStats = () => {
     const stats = {
-        gameState: {
+        game: {
+            mode: 'ULTRA',
             category: game.state.category,
             questionNumber: game.state.questionNumber,
             possibleItems: game.state.possibleItems.length,
-            askedQuestions: game.state.askedQuestions.length
+            askedQuestions: game.state.askedQuestions.length,
+            confidence: localAlgorithm.calculateConfidence(game.state.possibleItems) + '%'
         },
-        apiCache: apiHandler.getCacheStats(),
-        performance: {
-            memory: performance.memory ? {
-                used: Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB',
-                total: Math.round(performance.memory.totalJSHeapSize / 1048576) + 'MB'
-            } : 'N/A'
-        }
+        algorithm: {
+            currentStage: localAlgorithm.currentStage,
+            askedAttributes: Array.from(localAlgorithm.askedAttributes),
+            totalQuestions: game.state.questions?.length || 0
+        },
+        config: {
+            maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
+            minConfidence: CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS + '%',
+            earlyStop: CONFIG.GAME.EARLY_STOP_CONFIDENCE + '%',
+            features: {
+                decisionTree: CONFIG.FEATURES.USE_DECISION_TREE,
+                smartPruning: CONFIG.FEATURES.USE_SMART_PRUNING,
+                contextual: CONFIG.FEATURES.USE_CONTEXTUAL_QUESTIONS
+            }
+        },
+        topItems: game.state.possibleItems.slice(0, 5).map(i => ({
+            name: i.name,
+            probability: (i.probability * 100).toFixed(2) + '%'
+        })),
+        api: apiHandler.getCacheStats()
     };
     
-    console.table(stats.gameState);
-    console.log('📊 Full stats:', stats);
+    console.log('%c📊 ULTRA MODE STATISTICS', 'font-size: 14px; font-weight: bold; color: #f59e0b');
+    console.table(stats.game);
+    console.log('%cAlgorithm Status:', 'font-weight: bold; color: #3b82f6', stats.algorithm);
+    console.log('%cTop Items:', 'font-weight: bold; color: #10b981');
+    console.table(stats.topItems);
+    console.log('%cFull Stats:', 'color: #6b7280', stats);
+    
     return stats;
 };
 
 /**
- * Utility: Test API connection
+ * Utility: Test algorithm performance
  */
-window.testAPI = async () => {
-    console.log('🔌 Testing API connection...');
+window.testAlgorithm = () => {
+    console.log('%c🧪 Testing Algorithm Performance', 'font-size: 14px; font-weight: bold; color: #8b5cf6');
     
-    try {
-        const response = await fetch(CONFIG.API.BASE_URL);
-        const data = await response.json();
-        console.log('✅ API connected:', data);
-        return data;
-    } catch (error) {
-        console.error('❌ API connection failed:', error);
-        return null;
+    const items = apiHandler.getData('country');
+    if (items.length === 0) {
+        console.error('❌ No data loaded');
+        return;
     }
+
+    console.log('📊 Testing with', items.length, 'countries');
+    
+    // Test entropy calculation
+    const testItems = items.slice(0, 10).map(i => ({ ...i, probability: 1.0 }));
+    const entropy = localAlgorithm.calculateEntropy(testItems);
+    console.log('🔍 Entropy for 10 items:', entropy.toFixed(3));
+    
+    // Test information gain
+    const testQuestion = game.questionBank.country[0];
+    const infoGain = localAlgorithm.calculateInformationGain(testQuestion, testItems);
+    console.log('📈 Information Gain:', infoGain.toFixed(3));
+    
+    // Test confidence calculation
+    testItems[0].probability = 0.5;
+    const confidence = localAlgorithm.calculateConfidence(testItems);
+    console.log('🎯 Confidence:', confidence + '%');
+    
+    console.log('✅ Algorithm test complete');
 };
 
 /**
@@ -253,6 +342,64 @@ window.reloadData = async () => {
     console.log('🔄 Reloading game data...');
     await apiHandler.loadAllData();
     console.log('✅ Data reloaded');
+    console.log('📊 Stats:', apiHandler.getCacheStats().dataLoaded);
+};
+
+/**
+ * Utility: Simulate a game
+ */
+window.simulateGame = (country = 'Bangladesh') => {
+    console.log(`%c🎮 Simulating game for: ${country}`, 'font-size: 14px; font-weight: bold; color: #10b981');
+    
+    const items = apiHandler.getData('country');
+    const target = items.find(i => i.name === country);
+    
+    if (!target) {
+        console.error('❌ Country not found:', country);
+        return;
+    }
+    
+    console.log('🎯 Target:', target.name);
+    console.log('📍 Continent:', target.continent);
+    console.log('🗣️ Language:', target.language);
+    console.log('🏛️ Government:', target.government);
+    console.log('⭐ Famous for:', target.famousFor);
+    
+    let possibleItems = items.map(i => ({ ...i, probability: 1.0 }));
+    let questionCount = 0;
+    const maxQuestions = 20;
+    
+    while (possibleItems.length > 1 && questionCount < maxQuestions) {
+        const question = localAlgorithm.selectBestQuestion('country', [], possibleItems);
+        if (!question) break;
+        
+        questionCount++;
+        
+        // Auto-answer based on target
+        const matches = localAlgorithm.checkMatch(target[question.attribute], question.value);
+        const answer = matches ? 'yes' : 'no';
+        
+        console.log(`❓ Q${questionCount}: ${question.question} → ${answer}`);
+        
+        possibleItems = localAlgorithm.filterItems(possibleItems, question, answer);
+        
+        const confidence = localAlgorithm.calculateConfidence(possibleItems);
+        console.log(`   📊 Items: ${possibleItems.length}, Confidence: ${confidence}%`);
+        
+        if (possibleItems.length <= 3) {
+            console.log('   🔝 Top 3:', possibleItems.map(i => i.name).join(', '));
+        }
+    }
+    
+    const finalGuess = localAlgorithm.getBestGuess(possibleItems);
+    const finalConfidence = localAlgorithm.calculateConfidence(possibleItems);
+    
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #6b7280');
+    console.log(`%c🎯 Final Guess: ${finalGuess?.name}`, 'font-weight: bold; color: ' + (finalGuess?.name === country ? '#10b981' : '#ef4444'));
+    console.log(`%c📊 Confidence: ${finalConfidence}%`, 'font-weight: bold; color: #3b82f6');
+    console.log(`%c❓ Questions: ${questionCount}`, 'color: #6b7280');
+    console.log(`%c✅ Success: ${finalGuess?.name === country ? 'YES' : 'NO'}`, 'font-weight: bold; color: ' + (finalGuess?.name === country ? '#10b981' : '#ef4444'));
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #6b7280');
 };
 
 /**
@@ -270,7 +417,7 @@ window.addEventListener('beforeunload', (e) => {
  * Handle errors globally
  */
 window.addEventListener('error', (e) => {
-    console.error('Global error:', e.error);
+    console.error('%c❌ Global Error', 'font-weight: bold; color: #ef4444', e.error);
     
     if (CONFIG.DEBUG.ENABLED) {
         console.error('Error details:', {
@@ -286,23 +433,12 @@ window.addEventListener('error', (e) => {
  * Handle unhandled promise rejections
  */
 window.addEventListener('unhandledrejection', (e) => {
-    console.error('Unhandled promise rejection:', e.reason);
+    console.error('%c❌ Unhandled Promise Rejection', 'font-weight: bold; color: #ef4444', e.reason);
     
     if (CONFIG.DEBUG.ENABLED) {
         console.error('Promise rejection details:', e);
     }
 });
-
-/**
- * Service Worker registration (for PWA - optional)
- */
-if ('serviceWorker' in navigator && CONFIG.FEATURES.ENABLE_PWA) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('✅ Service Worker registered:', reg.scope))
-            .catch(err => console.log('❌ Service Worker registration failed:', err));
-    });
-}
 
 // Expose instances for debugging
 if (CONFIG.DEBUG.ENABLED) {
@@ -312,3 +448,5 @@ if (CONFIG.DEBUG.ENABLED) {
     window.animationController = animationController;
     window.CONFIG = CONFIG;
 }
+
+console.log('%c✨ Type "simulateGame()" to test the algorithm', 'color: #8b5cf6');
