@@ -5,7 +5,7 @@ V2: Multi-stage, adaptive, non-redundant question selection.
 
 import math
 import random
-from typing import List, Dict, Set, Tuple
+from typing import List, Dict, Set, Tuple, Optional # <--- FIX: Added Optional
 from collections import defaultdict
 import logging
 
@@ -84,15 +84,9 @@ class QuestionSelector:
         logger.debug(f"Feature importance calculated for {len(all_attributes)} attributes.")
 
     def select_best_question(self, available_questions: List[Dict], active_items: List[Item], 
-                             bayesian_network: BayesianNetwork, game_state_history: List[Tuple]) -> Optional[Dict]:
+                             bayesian_network: BayesianNetwork, game_state_history: List[Tuple[Dict, str]]) -> Optional[Dict]:
         """
         Selects the single best question using a blended score model.
-        
-        The blended score maximizes: 
-        1. Information Gain (Entropy Reduction)
-        2. Strategic Alignment (Question Stage)
-        3. Bayesian Prior Belief (Confirmation/Denial)
-        4. Question Balance (Near 50/50 split)
         """
         if len(active_items) <= GAME_CONFIG['min_items_to_guess'] or not active_items:
             return None
@@ -136,7 +130,6 @@ class QuestionSelector:
             balance_score = self._score_question_by_balance(active_items, question) * 0.05
             
             # 5. Feature Importance - Boost based on overall attribute value
-            # This helps select better attributes when IG scores are similar.
             importance_score = self.feature_importance.get(question['attribute'], 0.5) * 0.05
             
             # Calculate total score
@@ -163,7 +156,7 @@ class QuestionSelector:
         return best['question']
 
     def _prune_redundant_questions(self, available_questions: List[Dict], active_items: List[Item], 
-                                    game_state_history: List[Tuple]) -> List[Dict]:
+                                    game_state_history: List[Tuple[Dict, str]]) -> List[Dict]:
         """Filters out questions that are unlikely to yield new information."""
         
         asked_attributes = {q[0]['attribute'] for q in game_state_history}
@@ -193,7 +186,7 @@ class QuestionSelector:
                 continue
                 
             # 3. Prevent over-asking a general attribute (e.g., 'hasMountains')
-            attribute_count = sum(1 for q, _ in game_state_history if q['attribute'] == attribute)
+            attribute_count = sum(1 for q, _ in game_state_history if q[0]['attribute'] == attribute)
             if attribute_count >= 4 and attribute not in ['famousFor', 'neighbors']:
                  # Still allow very specific ones, but prune generic ones if abused
                  if self.get_attribute_stage(attribute) < 5:
