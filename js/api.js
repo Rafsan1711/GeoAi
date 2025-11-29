@@ -45,7 +45,16 @@ class APIHandler {
             const response = await fetch(url, config);
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: `HTTP Error ${response.status}` }));
+                let errorData = {};
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    // Handle cases where response is not JSON
+                    errorData.error = response.statusText || `HTTP Error ${response.status}`;
+                }
+                
+                // CRITICAL FIX: Log full error data from backend
+                console.error(`❌ API Error Response (${response.status} ${url}):`, errorData);
                 throw new Error(errorData.error || `HTTP Error ${response.status}`);
             }
 
@@ -54,7 +63,7 @@ class APIHandler {
             if (error.name === 'TimeoutError') {
                 console.error(`❌ API Timeout: ${url}`, error);
             } else {
-                console.error(`❌ API Failed: ${url}`, error);
+                // Generic error should already be logged by the inner logic
             }
             throw error;
         }
@@ -82,10 +91,11 @@ class APIHandler {
      * Load JSON data from file (Client-side Data Loading is MANDATORY)
      */
     async loadJSON(path) {
+        // NOTE: Path here must be relative to the Frontend's URL (https://geoai-p43j.onrender.com/render)
         try {
             const response = await fetch(path);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status} for path: ${path}`);
             }
             const data = await response.json();
             return data;
@@ -103,7 +113,7 @@ class APIHandler {
             this.loadJSON(CONFIG.DATA.PATHS.COUNTRIES),
             this.loadJSON(CONFIG.DATA.PATHS.CITIES),
             this.loadJSON(CONFIG.DATA.PATHS.PLACES),
-            this.loadJSON(CONFIG.DATA.PATHS.QUESTIONS) // Assuming a new combined questions.json file exists
+            this.loadJSON(CONFIG.DATA.PATHS.QUESTIONS) 
         ]);
 
         this.dataCache = {
@@ -115,7 +125,6 @@ class APIHandler {
 
         console.log(`📊 Data loaded: Countries=${countries.length}, Cities=${cities.length}, Places=${places.length}`);
 
-        // Check backend health only if data load is successful
         if (countries.length > 0) {
             await this.checkBackendHealth();
         }
@@ -145,7 +154,7 @@ class APIHandler {
         }
         const data = await this._apiCall(this.endpoints.START_GAME, 'POST', {
             category: category,
-            questions: questions // Send full question bank
+            questions: questions 
         });
         this.sessionId = data.session_id;
         return data;
@@ -168,7 +177,7 @@ class APIHandler {
         const prediction = await this._apiCall(this.endpoints.PREDICT, 'POST', {
             session_id: sessionId
         });
-        this.sessionId = null; // Session ends after final prediction
+        this.sessionId = null; 
         return prediction;
     }
     
