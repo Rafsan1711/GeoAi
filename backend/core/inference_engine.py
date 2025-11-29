@@ -1,13 +1,15 @@
 """
 Inference Engine - Pure Python Implementation
-Main AI Brain - No external dependencies
+Main AI Brain - Orchestrates all core components and implements game flow.
 """
 
 import math
 import logging
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
+import uuid
 
+# Core components
 from .question_selector import QuestionSelector
 from .probability_manager import ProbabilityManager
 from .confidence_calculator import ConfidenceCalculator
@@ -15,6 +17,8 @@ from algorithms.information_gain import InformationGain
 from algorithms.bayesian_network import BayesianNetwork
 from models.game_state import GameState
 from models.item_model import Item
+from backend.config import GAME_CONFIG
+from services.firebase_service import FirebaseService
 
 logger = logging.getLogger(__name__)
 
@@ -28,332 +32,201 @@ class InferenceEngine:
         self.confidence_calculator = ConfidenceCalculator()
         self.information_gain = InformationGain()
         self.bayesian_network = BayesianNetwork()
+        self.firebase_service = FirebaseService() # Firebase integration
         
-        self.current_game: Optional[GameState] = None
+        # Use a dictionary for active games for in-memory caching
+        self.active_games: Dict[str, GameState] = {}
         
         self.session_stats = {
             'games_played': 0,
             'successful_guesses': 0,
-            'average_questions': 0,
-            'common_patterns': defaultdict(int)
+            'average_questions': 0
         }
         
-        self.config = {
-            'min_confidence_threshold': 90,
-            'max_questions': 15,
-            'early_stop_threshold': 95,
-            'min_items_threshold': 2,
-            'soft_filter_threshold': 0.01,
-            'context_weight': 0.3,
-            'adaptive_strategy': True
-        }
-        
-        logger.info("Inference Engine initialized (Pure Python)")
+        logger.info("Inference Engine initialized (V3 Ultra)")
     
     def start_new_game(self, category: str, items: List[Dict], 
                        questions: List[Dict]) -> GameState:
-        """Start new game session"""
-        item_objects = [Item.from_dict(item_dict) for item_dict in items]
+        """Start new game session, initializing probability and network."""
         
+        # Clear old game and create new items
+        session_id = str(uuid.uuid4())
+        item_objects = [Item.from_dict({**item_dict, 'probability': 0.0}) for item_dict in items]
+        
+        # Initial uniform probability
+        initial_prob = 1.0 / len(item_objects) if item_objects else 0.0
         for item in item_objects:
-            item.probability = 1.0 / len(item_objects)
+            item.probability = initial_prob
         
-        self.current_game = GameState(
+        # Create new game state
+        game_state = GameState(
+            session_id=session_id,
             category=category,
             items=item_objects,
             questions=questions
         )
         
+        self.active_games[session_id] = game_state
+        
+        # Initialize core algorithms
         self.bayesian_network.build_network(item_objects, questions)
         self.question_selector.calculate_feature_importance(item_objects, questions)
         
-        logger.info(f"New game started: {category} with {len(items)} items")
-        return self.current_game
+        # Save initial state to Firebase (optional, for persistence/analytics)
+        self.firebase_service.save_game_state(game_state)
+        
+        logger.info(f"New game started: {session_id} - {category} with {len(items)} items")
+        return game_state
     
-    def get_next_question(self) -> Optional[Dict]:
-        """Select best next question"""
-        if not self.current_game:
-            raise ValueError("No active game")
+    def get_game_state(self, session_id: str) -> Optional[GameState]:
+        """Retrieves game state from in-memory cache or Firebase."""
+        if session_id in self.active_games:
+            return self.active_games[session_id]
         
-        if self._should_stop_asking():
-            logger.info("Stopping condition met")
+        # Try to load from Firebase if not in memory (simulating a cache miss)
+        game_state_dict = self.firebase_service.load_game_state(session_id)
+        if game_state_dict:
+            game_state = GameState.from_dict(game_state_dict)
+            self.active_games[session_id] = game_state # Cache it
+            logger.info(f"Game state loaded from Firebase: {session_id}")
+            # Re-initialize algorithm components with loaded state
+            self.bayesian_network.build_network(game_state.items, game_state.questions)
+            self.question_selector.calculate_feature_importance(game_state.items, game_state.questions)
+            return game_state
+
+        return None
+
+    def get_next_question(self, game_state: GameState) -> Optional[Dict]:
+        """Select best next question using multi-criteria scoring."""
+        
+        if self._should_stop_asking(game_state):
+            logger.info(f"Session {game_state.session_id}: Stopping condition met.")
             return None
         
-        active_items = self.current_game.get_active_items()
+        active_items = game_state.get_active_items()
+        available_questions = game_state.get_available_questions()
         
-        if len(active_items) == 0:
-            logger.warning("No active items")
+        if len(active_items) == 0 or not available_questions:
             return None
         
-        available_questions = self.current_game.get_available_questions()
-        
-        if not available_questions:
-            logger.info("No more questions")
-            return None
-        
-        question_scores = []
-        
-        for question in available_questions:
-            ig_score = self.information_gain.calculate(
-                active_items, 
-                question['attribute'], 
-                question['value']
-            )
-            
-            bn_score = self.bayesian_network.score_question(
-                question, 
-                self.current_game.answer_history
-            )
-            
-            context_score = self._calculate_context_score(question)
-            strategy_score = self._calculate_strategy_score(question)
-            
-            total_score = (
-                0.40 * ig_score +
-                0.25 * bn_score +
-                0.20 * context_score +
-                0.15 * strategy_score
-            )
-            
-            question_scores.append({
-                'question': question,
-                'score': total_score,
-                'ig': ig_score,
-                'bn': bn_score,
-                'context': context_score,
-                'strategy': strategy_score
-            })
-        
-        question_scores.sort(key=lambda x: x['score'], reverse=True)
-        
-        best = question_scores[0]
-        selected_question = best['question']
-        
-        logger.info(
-            f"Question {self.current_game.questions_asked + 1}: "
-            f"{selected_question['question']} (score: {best['score']:.3f})"
+        # Select best question
+        selected_question = self.question_selector.select_best_question(
+            available_questions=available_questions,
+            active_items=active_items,
+            bayesian_network=self.bayesian_network,
+            game_state_history=game_state.answer_history
         )
         
-        self.current_game.mark_question_asked(selected_question)
+        if selected_question:
+            game_state.mark_question_asked(selected_question)
+            logger.info(
+                f"Session {game_state.session_id}: Q{game_state.questions_asked} selected: {selected_question['question']}"
+            )
+            self.firebase_service.save_game_state(game_state) # Persist state
         
         return selected_question
     
-    def process_answer(self, answer: str) -> Dict:
-        """Process user answer"""
-        if not self.current_game or not self.current_game.current_question:
-            raise ValueError("No active question")
+    def process_answer(self, game_state: GameState, answer: str) -> Dict:
+        """Process user answer, update probabilities, and propagate beliefs."""
+        if not game_state.current_question:
+            raise ValueError("No active question to answer.")
         
-        question = self.current_game.current_question
+        question = game_state.current_question
+        game_state.record_answer(answer)
         
-        self.current_game.record_answer(answer)
-        
-        active_items = self.current_game.get_active_items()
-        
+        # 1. Update Probabilities (Likelihood & Soft Elimination)
+        active_items = game_state.get_active_items()
         for item in active_items:
-            likelihood = self._calculate_likelihood(item, question, answer)
-            item.probability *= likelihood
+            item.probability = self.probability_manager.update_item_probability(
+                item, question, answer
+            )
         
-        self._normalize_probabilities()
-        self._soft_filter_items()
+        # 2. Normalize and Filter
+        self.probability_manager.normalize_probabilities(game_state.items)
+        self.probability_manager.soft_filter(game_state.items, top_k=GAME_CONFIG['min_items_to_guess'] + 2)
         
-        self.bayesian_network.update_beliefs(question, answer)
+        # 3. Propagate Beliefs
+        self.bayesian_network.update_beliefs(question, answer, game_state.items)
         
-        confidence = self.confidence_calculator.calculate(
-            self.current_game.get_active_items()
-        )
+        # 4. Update metrics
+        current_active_items = game_state.get_active_items()
+        confidence = self.confidence_calculator.calculate(current_active_items)
+        top_item = game_state.get_top_prediction()
         
-        top_item = self.current_game.get_top_prediction()
+        # 5. Save state
+        self.firebase_service.save_game_state(game_state)
         
         logger.info(
-            f"Answer processed: {answer} | "
-            f"Active items: {len(self.current_game.get_active_items())} | "
-            f"Confidence: {confidence:.1f}% | "
-            f"Top: {top_item.name if top_item else 'None'}"
+            f"Session {game_state.session_id}: Answer processed ({answer}) | "
+            f"Items: {len(current_active_items)} | Confidence: {confidence:.1f}%"
         )
         
         return {
             'confidence': confidence,
-            'active_items_count': len(self.current_game.get_active_items()),
+            'active_items_count': len(current_active_items),
             'top_prediction': top_item.to_dict() if top_item else None,
-            'should_stop': self._should_stop_asking()
+            'should_stop': self._should_stop_asking(game_state)
         }
-    
-    def get_final_prediction(self) -> Dict:
-        """Get final prediction"""
-        if not self.current_game:
-            raise ValueError("No active game")
+
+    def get_final_prediction(self, game_state: GameState) -> Dict:
+        """Get final prediction and clean up session."""
         
-        top_item = self.current_game.get_top_prediction()
-        active_items = self.current_game.get_active_items()
-        
-        if not top_item:
-            return {
-                'prediction': None,
-                'confidence': 0,
-                'alternatives': []
-            }
+        top_item = game_state.get_top_prediction()
+        active_items = game_state.get_active_items()
         
         confidence = self.confidence_calculator.calculate(active_items)
         
-        sorted_items = sorted(
-            active_items, 
-            key=lambda x: x.probability, 
-            reverse=True
-        )
-        alternatives = [item.to_dict() for item in sorted_items[1:4]]
-        
-        self._update_session_stats(confidence >= 85)
-        
-        logger.info(
-            f"Final prediction: {top_item.name} "
-            f"(confidence: {confidence:.1f}%, "
-            f"questions: {self.current_game.questions_asked})"
-        )
+        if top_item:
+            sorted_items = sorted(
+                active_items, 
+                key=lambda x: x.probability, 
+                reverse=True
+            )
+            alternatives = [item.to_dict() for item in sorted_items[1:4]]
+            
+            # 1. Log final result for analytics
+            self.firebase_service.log_game_result(game_state, top_item.name, confidence, False, "Final Guess")
+            
+            # 2. Update local stats
+            self._update_session_stats(confidence >= GAME_CONFIG['confidence_threshold_stage_3'])
+        else:
+            alternatives = []
+
+        # 3. Clean up in-memory cache
+        if game_state.session_id in self.active_games:
+            del self.active_games[game_state.session_id]
         
         return {
-            'prediction': top_item.to_dict(),
+            'prediction': top_item.to_dict() if top_item else None,
             'confidence': int(confidence),
             'alternatives': alternatives,
-            'questions_asked': self.current_game.questions_asked,
-            'total_items': len(self.current_game.items),
+            'questions_asked': game_state.questions_asked,
+            'total_items': len(game_state.items),
             'remaining_items': len(active_items)
         }
-    
-    def _should_stop_asking(self) -> bool:
-        """Check if should stop"""
-        if not self.current_game:
+        
+    def _should_stop_asking(self, game_state: GameState) -> bool:
+        """Check if stopping condition is met using adaptive logic."""
+        active_items = game_state.get_active_items()
+        
+        # Absolute limits
+        if len(active_items) <= GAME_CONFIG['min_items_to_guess']:
             return True
-        
-        active_items = self.current_game.get_active_items()
-        
-        if len(active_items) == 0:
+        if game_state.questions_asked >= GAME_CONFIG['max_questions']:
             return True
-        
-        if self.current_game.questions_asked >= self.config['max_questions']:
+        if not game_state.get_available_questions():
             return True
-        
-        if len(active_items) <= self.config['min_items_threshold']:
-            return True
-        
+
         confidence = self.confidence_calculator.calculate(active_items)
-        if confidence >= self.config['early_stop_threshold']:
-            return True
         
-        if len(self.current_game.get_available_questions()) == 0:
-            return True
-        
-        return False
-    
-    def _calculate_likelihood(self, item: Item, question: Dict, 
-                             answer: str) -> float:
-        """Calculate likelihood"""
-        attribute = question['attribute']
-        target_value = question['value']
-        item_value = item.attributes.get(attribute)
-        
-        if isinstance(item_value, list):
-            matches = target_value in item_value
-        else:
-            matches = item_value == target_value
-        
-        if answer == 'yes':
-            return 2.5 if matches else 0.05
-        elif answer == 'probably':
-            return 1.5 if matches else 0.3
-        elif answer == 'dontknow':
-            return 1.0
-        elif answer == 'probablynot':
-            return 0.3 if matches else 1.5
-        elif answer == 'no':
-            return 0.05 if matches else 2.5
-        else:
-            return 1.0
-    
-    def _normalize_probabilities(self):
-        """Normalize probabilities"""
-        if not self.current_game:
-            return
-        
-        active_items = self.current_game.get_active_items()
-        total_prob = sum(item.probability for item in active_items)
-        
-        if total_prob > 0:
-            for item in active_items:
-                item.probability /= total_prob
-    
-    def _soft_filter_items(self):
-        """Soft filter items"""
-        if not self.current_game:
-            return
-        
-        threshold = self.config['soft_filter_threshold']
-        
-        for item in self.current_game.items:
-            if item.probability < threshold:
-                item.eliminated = True
-    
-    def _calculate_context_score(self, question: Dict) -> float:
-        """Calculate context score"""
-        if not self.current_game or not self.current_game.answer_history:
-            return 0.5
-        
-        score = 0.5
-        attribute = question['attribute']
-        
-        related_attrs = self._get_related_attributes(attribute)
-        
-        for prev_q, prev_a in self.current_game.answer_history:
-            if prev_q['attribute'] in related_attrs:
-                if prev_a in ['yes', 'no']:
-                    score += 0.2
-                elif prev_a == 'dontknow':
-                    score -= 0.1
-        
-        return max(0.0, min(1.0, score))
-    
-    def _calculate_strategy_score(self, question: Dict) -> float:
-        """Calculate strategy score"""
-        if not self.current_game:
-            return 0.5
-        
-        questions_asked = self.current_game.questions_asked
-        max_questions = self.config['max_questions']
-        progress = questions_asked / max_questions
-        
-        if progress < 0.3:
-            if question['attribute'] in ['continent', 'type', 'region']:
-                return 1.0
-            return 0.4
-        
-        elif progress < 0.7:
-            if question['attribute'] in ['climate', 'size', 'famousFor', 'age']:
-                return 1.0
-            return 0.6
-        
-        else:
-            if question['attribute'] in ['country', 'famousFor', 'name']:
-                return 1.0
-            return 0.7
-    
-    def _get_related_attributes(self, attribute: str) -> List[str]:
-        """Get related attributes"""
-        families = {
-            'geographic': ['continent', 'region', 'hasCoast', 'isIsland', 
-                          'landlocked', 'hasMountains'],
-            'demographic': ['population', 'size', 'isCapital'],
-            'cultural': ['language', 'mainReligion', 'famousFor'],
-            'environmental': ['climate', 'isNatural'],
-            'political': ['government', 'country']
-        }
-        
-        for family, attrs in families.items():
-            if attribute in attrs:
-                return [a for a in attrs if a != attribute]
-        
-        return []
-    
+        # Adaptive check (uses ConfidenceCalculator's logic)
+        return self.confidence_calculator.should_make_guess(
+            confidence, 
+            game_state.questions_asked
+        )
+
     def _update_session_stats(self, success: bool):
-        """Update session statistics"""
+        """Update local, temporary session statistics (not persisted)"""
         self.session_stats['games_played'] += 1
         if success:
             self.session_stats['successful_guesses'] += 1
@@ -366,7 +239,7 @@ class InferenceEngine:
         self.session_stats['average_questions'] = new_avg
     
     def get_session_stats(self) -> Dict:
-        """Get session stats"""
+        """Get local session stats"""
         games = self.session_stats['games_played']
         success = self.session_stats['successful_guesses']
         
