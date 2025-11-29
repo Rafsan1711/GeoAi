@@ -30,7 +30,6 @@ class InformationGain:
         if current_entropy < self.epsilon:
             return 0.0
             
-        # NOTE: We use duck typing here; Item.matches_question exists on item objects.
         yes_items, no_items = self._split_items(active_items, attribute, value)
         
         total_weight = sum(i.probability for i in active_items)
@@ -69,8 +68,6 @@ class InformationGain:
     
     def _split_items(self, items: List, attribute: str, value) -> Tuple[List, List]:
         """Split items by attribute value using Item's internal check"""
-        # NOTE: Using tuple/dict as item type hints requires `from models.item_model import Item`
-        # but to avoid circular dependency in algorithms, we rely on duck typing here.
         
         yes_items = []
         no_items = []
