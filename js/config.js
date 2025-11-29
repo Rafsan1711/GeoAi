@@ -3,34 +3,23 @@
 const CONFIG = {
     // API Configuration
     API: {
-        BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com',
-        TIMEOUT: 30000,
-        ENDPOINTS: {
-            START_GAME: '/start-game',
-            GET_QUESTION: '/question',
-            PROCESS_ANSWER: '/answer',
-            FILTER: '/filter',
-            PREDICT: '/predict',
-            STATS: '/stats'
-        }
+        // CRITICAL: Must be updated to your Render.com backend URL
+        BASE_URL: 'https://geoai-p43j.onrender.com', 
+        TIMEOUT: 10000, // 10 seconds for robustness
+        ENDPOINTS: { /* Defined in api_enhanced.js */ }
     },
 
     // Game Configuration - ULTRA MODE
     GAME: {
-        MAX_QUESTIONS: 50,  // Much higher limit
-        MIN_CONFIDENCE_TO_GUESS: 98,  // Very high confidence needed
-        EARLY_STOP_CONFIDENCE: 99,  // Only stop if almost certain
+        MAX_QUESTIONS: 50,  // Max limit
+        MIN_CONFIDENCE_TO_GUESS: 95, // Min confidence to stop asking
+        EARLY_STOP_CONFIDENCE: 99,  // Early stop
         MIN_ITEMS_TO_GUESS: 1,  // Continue until 1 item
-        THINKING_DURATION: 2000,
-        QUESTION_DELAY: 300,
+        THINKING_DURATION: 3000, // Longer thinking time for better user experience
+        QUESTION_DELAY: 500, // Delay between questions
         
-        // Advanced stopping criteria
+        // Advanced stopping criteria (Handled by backend)
         ADAPTIVE_STOPPING: true,
-        CONFIDENCE_THRESHOLD_PER_STAGE: {
-            early: 99,    // Questions 1-10: need 99%
-            mid: 98,      // Questions 11-25: need 98%
-            late: 95      // Questions 26+: need 95%
-        }
     },
 
     // Data Paths
@@ -38,21 +27,23 @@ const CONFIG = {
         PATHS: {
             COUNTRIES: 'data/countries.json',
             CITIES: 'data/cities.json',
-            PLACES: 'data/places.json'
+            PLACES: 'data/places.json',
+            QUESTIONS: 'data/questions.json' // New consolidated question bank
         }
     },
+    
+    // UI Colors (Used for dynamic status display)
+    COLORS: {
+        SUCCESS: '#10b981',
+        ERROR: '#ef4444',
+        PRIMARY: '#6366f1'
+    },
 
-    // Feature Flags
+    // Feature Flags (Frontend only)
     FEATURES: {
-        USE_PYTHON_API: false,
-        USE_SESSION_API: false,
-        USE_LOCAL_ALGORITHM: true,
+        USE_PYTHON_API: true, // Now mandatory
+        USE_SESSION_API: true, // Now mandatory
         ENABLE_PWA: false,
-        
-        // Advanced features
-        USE_DECISION_TREE: true,
-        USE_SMART_PRUNING: true,
-        USE_CONTEXTUAL_QUESTIONS: true
     },
 
     // UI Configuration
@@ -62,35 +53,11 @@ const CONFIG = {
         PARTICLE_COUNT: 30
     },
 
-    // Answer Weights - More aggressive
-    ANSWER_WEIGHTS: {
-        'yes': {
-            match: 5.0,      // Very strong boost for matches
-            mismatch: 0.001  // Almost eliminate mismatches
-        },
-        'probably': {
-            match: 2.5,
-            mismatch: 0.1
-        },
-        'dontknow': {
-            match: 1.0,
-            mismatch: 1.0
-        },
-        'probablynot': {
-            match: 0.1,
-            mismatch: 2.5
-        },
-        'no': {
-            match: 0.001,    // Almost eliminate matches
-            mismatch: 5.0    // Very strong boost for mismatches
-        }
-    },
-
     // Debug Configuration
     DEBUG: {
-        ENABLED: false,
-        LOG_API_CALLS: false,
-        LOG_ALGORITHM: true,
-        LOG_QUESTIONS: true
+        ENABLED: true, // Start in Debug mode for easier initial testing
+        LOG_API_CALLS: true,
+        LOG_ALGORITHM: false, // Algorithm logic is now on the backend
+        LOG_QUESTIONS: false
     }
 };
