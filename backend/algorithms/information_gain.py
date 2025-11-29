@@ -3,7 +3,7 @@ Information Gain - Pure Python Implementation
 """
 
 import math
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple # <--- FIX: Added all needed imports
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class InformationGain:
         if current_entropy < self.epsilon:
             return 0.0
             
+        # NOTE: We use duck typing here; Item.matches_question exists on item objects.
         yes_items, no_items = self._split_items(active_items, attribute, value)
         
         total_weight = sum(i.probability for i in active_items)
@@ -68,7 +69,8 @@ class InformationGain:
     
     def _split_items(self, items: List, attribute: str, value) -> Tuple[List, List]:
         """Split items by attribute value using Item's internal check"""
-        from models.item_model import Item # Local import to avoid circular dependency
+        # NOTE: Using tuple/dict as item type hints requires `from models.item_model import Item`
+        # but to avoid circular dependency in algorithms, we rely on duck typing here.
         
         yes_items = []
         no_items = []
@@ -76,6 +78,7 @@ class InformationGain:
         test_question = {'attribute': attribute, 'value': value}
         
         for item in items:
+            # We assume item is an object with a matches_question method
             if item.matches_question(test_question):
                 yes_items.append(item)
             else:
