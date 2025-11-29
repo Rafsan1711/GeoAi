@@ -12,10 +12,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# CRITICAL FIX: Direct, non-relative imports based on Gunicorn's --chdir backend
-# This ensures that 'config', 'core', 'utils', 'models' are treated as top-level modules
+# CRITICAL FIX: Direct, non-relative imports from the backend root structure
 from config import DEPLOYMENT_CONFIG
-from core.inference_engine import InferenceEngine
+from core.inference_engine import InferenceEngine # FIX: Direct access
 from utils.data_loader import DataLoader
 from utils.logger import setup_logger
 from models.item_model import Item 
@@ -28,7 +27,6 @@ app = Flask(__name__)
 CORS(app) # Enable CORS for frontend communication
 
 # Global instances
-# NOTE: data_dir is relative to the directory Gunicorn starts in ('backend')
 data_loader = DataLoader(data_dir='data')
 inference_engine = InferenceEngine()
 
@@ -38,7 +36,6 @@ def _get_game_state(session_id: str):
     """Utility to retrieve game state or return error."""
     game_state = inference_engine.get_game_state(session_id)
     if not game_state:
-        # Note: Game state cleanup in cache is important on failure
         if session_id in inference_engine.active_games:
             del inference_engine.active_games[session_id]
         return None, jsonify({'error': 'Invalid or expired session'}), 400
@@ -210,7 +207,7 @@ def submit_feedback():
             inference_engine.probability_manager.normalize_probabilities(game_state.items)
             inference_engine.probability_manager.soft_filter(game_state.items)
 
-        if game_state.questions_asked >= GAME_CONFIG['max_questions']:
+        if game_state.questions_asked >= DEPLOYMENT_CONFIG['max_questions']:
             return jsonify({'message': 'Max questions reached, forcing final prediction.', 'questions_asked': game_state.questions_asked}), 400
 
         inference_engine.firebase_service.save_game_state(game_state)
