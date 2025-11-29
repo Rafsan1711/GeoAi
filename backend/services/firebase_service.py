@@ -1,184 +1,137 @@
 """
-Firebase Service - Handles persistence and logging using Firebase RTDB.
-Replaces Redis, MongoDB, and Supabase integration.
+Firebase Service - Handles persistence and logging using Firebase RTDB REST API.
+This is optimized for low-resource environments (Render.com Free Tier) and avoids heavy SDKs.
 """
 
-import firebase_admin
-from firebase_admin import db, credentials
+import requests
 from typing import Optional, Dict
 import logging
 import json
-import os
 from datetime import datetime
 
 # Local Imports
-# Assuming backend/config.py is at the root of python modules, 
-# or adjust path if necessary (e.g. from ..config import ...)
-from backend.config import FIREBASE_CONFIG 
+from backend.config import FIREBASE_CONFIG
 from models.game_state import GameState # Required for type hinting/dict conversion
 
 logger = logging.getLogger(__name__)
 
 class FirebaseService:
-    """Singleton class for Firebase Realtime Database operations."""
+    """Singleton class for Firebase Realtime Database operations via REST API."""
     
     _instance = None
-    _db_client = None
 
     def __new__(cls):
         """Implement Singleton pattern."""
         if cls._instance is None:
             cls._instance = super(FirebaseService, cls).__new__(cls)
-            cls._instance._initialize_firebase()
+            cls._instance._base_url = FIREBASE_CONFIG['databaseURL']
+            cls._instance._auth = FIREBASE_CONFIG['apiKey']
+            cls._instance._session = requests.Session() # Use a session for performance
+            
+            if not cls._instance._base_url.endswith('/'):
+                 cls._instance._base_url += '/'
+                 
+            logger.info(f"✅ Firebase REST Service initialized: {cls._instance._base_url}")
+            
         return cls._instance
 
-    def _initialize_firebase(self):
-        """Initializes the Firebase app if not already done."""
-        if not firebase_admin._apps:
-            try:
-                # IMPORTANT: For Render.com, the service account file should be uploaded 
-                # or base64 encoded into an environment variable and decoded on startup.
-                
-                cred_path = FIREBASE_CONFIG['credential_path']
-                
-                # Check for direct file path first (common in local dev/Render build)
-                if os.path.exists(cred_path):
-                    cred = credentials.Certificate(cred_path)
-                
-                # Check for a single env var if file doesn't exist (better for security)
-                elif os.getenv('FIREBASE_SA_KEY_JSON'):
-                    # Load from environment variable (base64 decoded JSON string)
-                    import base64
-                    json_data = base64.b64decode(os.getenv('FIREBASE_SA_KEY_JSON')).decode('utf-8')
-                    service_account_json = json.loads(json_data)
-                    cred = credentials.Certificate(service_account_json)
-                
-                else:
-                    logger.error("No Firebase credentials found. Skipping Firebase initialization.")
-                    return
-
-                firebase_admin.initialize_app(cred, {
-                    'databaseURL': FIREBASE_CONFIG['databaseURL']
-                })
-                self._db_client = db
-                logger.info("✅ Firebase RTDB initialized successfully.")
-                
-            except Exception as e:
-                logger.error(f"❌ Failed to initialize Firebase: {e}", exc_info=True)
-                
-    # --- SESSION STATE MANAGEMENT (Replaces Redis) ---
-
-    def save_game_state(self, game_state: GameState):
-        """Save the current GameState object to Firebase RTDB."""
-        if not self._db_client:
-            return
-        
+    def _send_request(self, method: str, path: str, data: Optional[Dict] = None) -> Optional[Dict]:
+        """Generic method to send a request to Firebase RTDB."""
+        url = self._base_url + path + ".json"
+        params = {}
+        if self._auth:
+            params['auth'] = self._auth
+            
         try:
-            # GameState.to_dict() is complex, so we limit the update path 
-            # for better performance and smaller payload.
-            state_dict = game_state.to_dict()
+            if method == 'PUT':
+                response = self._session.put(url, params=params, json=data, timeout=5)
+            elif method == 'GET':
+                response = self._session.get(url, params=params, timeout=5)
+            elif method == 'POST':
+                response = self._session.post(url, params=params, json=data, timeout=5)
+            elif method == 'DELETE':
+                response = self._session.delete(url, params=params, timeout=5)
+            else:
+                return None
             
-            ref = self._db_client.reference(f'games/{game_state.session_id}')
-            # Store the entire state under the session ID
-            ref.set(state_dict) 
-            
-        except Exception as e:
-            logger.error(f"Error saving game state for {game_state.session_id}: {e}")
-
-    def load_game_state(self, session_id: str) -> Optional[Dict]:
-        """Load the GameState dictionary from Firebase RTDB."""
-        if not self._db_client:
+            response.raise_for_status() # Raise HTTPError for bad responses
+            return response.json()
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Firebase REST Error ({method} {path}): {e}")
             return None
             
+    # --- SESSION STATE MANAGEMENT ---
+
+    def save_game_state(self, game_state: GameState):
+        """Save the current GameState object to Firebase RTDB (PUT/Overwrite)."""
         try:
-            ref = self._db_client.reference(f'games/{session_id}')
-            state_dict = ref.get()
-            
-            if state_dict and isinstance(state_dict, dict):
-                return state_dict
-            
-        except Exception as e:
-            logger.error(f"Error loading game state for {session_id}: {e}")
-            
-        return None
+            state_dict = game_state.to_dict()
+            self._send_request('PUT', f'games/{game_state.session_id}', state_dict)
+        except Exception:
+            # Error already logged in _send_request
+            pass
+
+    def load_game_state(self, session_id: str) -> Optional[Dict]:
+        """Load the GameState dictionary from Firebase RTDB (GET)."""
+        return self._send_request('GET', f'games/{session_id}')
         
     def delete_game_state(self, session_id: str):
-        """Delete game state after game ends or expires."""
-        if not self._db_client:
-            return
-        
-        try:
-            ref = self._db_client.reference(f'games/{session_id}')
-            ref.delete()
-            logger.info(f"Deleted game state for session: {session_id}")
-        except Exception as e:
-            logger.error(f"Error deleting game state for {session_id}: {e}")
+        """Delete game state (DELETE)."""
+        self._send_request('DELETE', f'games/{session_id}')
 
-    # --- ANALYTICS & LEARNING (Replaces MongoDB/Supabase) ---
+    # --- ANALYTICS & LEARNING ---
 
     def log_game_result(self, game_state: GameState, final_guess: str, confidence: float, was_correct: bool, failure_reason: str, actual_answer: Optional[str] = None):
-        """Log final game result for later analytics/learning."""
-        if not self._db_client:
-            return
-
-        try:
-            result_data = {
-                'session_id': game_state.session_id,
-                'category': game_state.category,
-                'questions_asked': game_state.questions_asked,
-                'final_guess': final_guess,
-                'actual_answer': actual_answer,
-                'was_correct': was_correct,
-                'confidence': round(confidence, 1),
-                'failure_reason': failure_reason,
-                'duration_seconds': game_state.get_game_duration(),
-                'answer_history_summary': game_state.get_answer_statistics(),
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            ref = self._db_client.reference(f'analytics/game_results')
-            ref.push(result_data)
-            
-        except Exception as e:
-            logger.error(f"Error logging game result for {game_state.session_id}: {e}")
+        """Log final game result for later analytics/learning (POST/Push)."""
+        
+        result_data = {
+            'session_id': game_state.session_id,
+            'category': game_state.category,
+            'questions_asked': game_state.questions_asked,
+            'final_guess': final_guess,
+            'actual_answer': actual_answer,
+            'was_correct': was_correct,
+            'confidence': round(confidence, 1),
+            'failure_reason': failure_reason,
+            'duration_seconds': round(game_state.get_game_duration(), 2),
+            'answer_history_summary': game_state.get_answer_statistics(),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        self._send_request('POST', 'analytics/game_results', result_data)
             
     def update_question_effectiveness(self, question: Dict, information_gain: float, was_effective: bool):
         """
-        Increment effectiveness metrics for a question to train the model.
-        (This is simplified for Firebase RTDB)
+        Increment effectiveness metrics for a question (Simplified update via GET-PUT).
+        NOTE: This is not a true transaction, so concurrent updates might overwrite.
+        For low-traffic, non-critical data, this is acceptable for the free tier.
         """
-        if not self._db_client:
-            return
-            
         attr = question['attribute']
         # Sanitize value for Firebase path
         val_key = str(question['value']).replace('.', '_').replace('#', '_').replace('$', '_').replace('[', '_').replace(']', '_')
+        category = question['category']
         
-        try:
-            ref = self._db_client.reference(f'learning/questions/{question["category"]}/{attr}/{val_key}')
-            
-            def transaction_handler(current_data):
-                if current_data is None:
-                    current_data = {
-                        'times_asked': 0,
-                        'total_ig': 0.0,
-                        'effective_count': 0,
-                        'question_text': question['question']
-                    }
-                
-                current_data['times_asked'] += 1
-                current_data['total_ig'] += information_gain
-                if was_effective:
-                    current_data['effective_count'] += 1
-                    
-                # Calculate average IG (simple running average)
-                current_data['avg_ig'] = current_data['total_ig'] / current_data['times_asked']
-                
-                return current_data
-                
-            ref.transaction(transaction_handler)
-            
-        except Exception as e:
-            logger.error(f"Error updating question effectiveness for {attr}/{val_key}: {e}")
-            
-    # --- END OF FIREBASE SERVICE ---
+        path = f'learning/questions/{category}/{attr}/{val_key}'
+        
+        # 1. GET current data
+        current_data = self._send_request('GET', path)
+        
+        if current_data is None:
+            current_data = {
+                'times_asked': 0,
+                'total_ig': 0.0,
+                'effective_count': 0,
+                'question_text': question['question']
+            }
+
+        # 2. Update logic
+        current_data['times_asked'] += 1
+        current_data['total_ig'] += information_gain
+        if was_effective:
+            current_data['effective_count'] += 1
+        
+        current_data['avg_ig'] = current_data['total_ig'] / current_data['times_asked']
+
+        # 3. PUT (Overwrite) updated data
+        self._send_request('PUT', path, current_data)
