@@ -35,10 +35,10 @@ class Game {
             this.state.usingBackend = apiHandler.backendHealthy;
             
             if (!this.state.usingBackend) {
-                // If backend fails, we cannot proceed in ULTRA mode.
                  document.getElementById('backendStatus').textContent = "❌ Backend Offline. Ultra Mode Disabled.";
                  document.getElementById('backendStatus').style.color = CONFIG.COLORS.ERROR;
-                 throw new Error("Backend API required for Ultra Mode is unavailable.");
+                 // Allow local operation for UI demonstration if needed, but warn heavily
+                 console.error("Backend API required for Ultra Mode is unavailable. Game will likely fail.");
             } else {
                  document.getElementById('backendStatus').textContent = "✅ Ultra Mode Ready (Backend Active)";
                  document.getElementById('backendStatus').style.color = CONFIG.COLORS.SUCCESS;
@@ -73,6 +73,18 @@ class Game {
         document.getElementById('categoryCountPlace').textContent = `${apiHandler.getData('place').length}+ Items`;
     }
 
+    // FIX: Re-adding missing functions for UI/UX
+    showEngineScreen() {
+        this.hideAllScreens();
+        document.getElementById('engineScreen').classList.add('active');
+    }
+
+    // FIX: Re-adding missing functions for UI/UX
+    closeEngineScreen() {
+        this.showWelcomeScreen();
+    }
+    // END FIX
+
     showThinkingScreen(category) {
         this.hideAllScreens();
         const categoryNames = {
@@ -83,11 +95,10 @@ class Game {
         document.getElementById('thinkingCategory').textContent = categoryNames[category];
         document.getElementById('thinkingScreen').classList.add('active');
         
-        // Restart the progress bar animation
         const progressBarFill = document.querySelector('.thinking-progress-fill');
         if (progressBarFill) {
             progressBarFill.style.animation = 'none';
-            progressBarFill.offsetHeight; // Trigger reflow
+            progressBarFill.offsetHeight; 
             progressBarFill.style.animation = `thinkingProgress ${this.thinkingDuration}ms ease-in-out forwards`;
         }
     }
@@ -135,7 +146,6 @@ class Game {
             return;
         }
 
-        // Reset state
         this.state.category = category;
         this.state.questionNumber = 0;
         this.state.maxConfidence = 0;
@@ -150,7 +160,6 @@ class Game {
         this.showThinkingScreen(category);
         
         try {
-            // Start backend session
             const startData = await apiHandler.startGame(category, this.state.questions);
             this.state.sessionId = startData.session_id;
 
@@ -266,17 +275,14 @@ class Game {
         try {
             const result = await apiHandler.getPrediction(this.state.sessionId);
             
-            // Populate guess screen before showing result UI
             document.getElementById('guessName').textContent = result.prediction.name;
             document.getElementById('guessConfidence').textContent = `${result.confidence}%`;
             document.getElementById('guessInfo').textContent = result.prediction.info;
             document.getElementById('questionsCount').textContent = result.questions_asked;
             
-            // Show the Guess Screen, then after user clicks, move to Result Screen.
             this.hideAllScreens();
             document.getElementById('guessScreen').classList.add('active');
             
-            // Set up button handlers for the guess screen
             document.getElementById('guessYesBtn').onclick = () => this.handleGuess(true, result);
             document.getElementById('guessNoBtn').onclick = () => this.handleGuess(false, result);
             
@@ -296,10 +302,8 @@ class Game {
         animationController.fadeOut(targetElement, 300);
         
         if (isCorrect) {
-            // User confirmed correct guess -> show result screen
             this.showFinalResult(result);
         } else {
-            // User denied the guess -> show feedback modal
             this.showFeedbackModal(result.prediction.name);
         }
     }
@@ -307,13 +311,12 @@ class Game {
     loadActualAnswers(category) {
         const items = apiHandler.getData(category);
         const listContainer = document.getElementById('actualAnswerList');
-        listContainer.innerHTML = ''; // Clear previous list
+        listContainer.innerHTML = ''; 
         
-        // Sort by probability (backend's final state) if available, otherwise just use names
-        const names = this.state.possibleItems.map(i => i.name).sort(); 
+        // Use client-side data for displaying name options
+        const names = items.map(i => i.name).sort(); 
         
-        // For simplicity, just list all possible names (max 157 for countries)
-        names.slice(0, 50).forEach(name => { // Limit to 50 for performance/UI
+        names.slice(0, 50).forEach(name => { 
             const button = document.createElement('button');
             button.className = 'btn btn-secondary btn-feedback-choice';
             button.textContent = name;
@@ -324,17 +327,18 @@ class Game {
     
     async submitCorrection(actualAnswerName) {
         this.closeFeedbackModal();
-        this.showThinkingScreen(this.state.category); // Show thinking while learning
+        this.showThinkingScreen(this.state.category);
         
         try {
-            const data = await apiHandler.submitFeedback(this.state.sessionId, actualAnswerName);
+            const data = await apiHandler.submitCorrection(this.state.sessionId, actualAnswerName);
+            
+            this.state.questionNumber = data.questions_asked; 
             
             if (data.questions_asked >= this.state.maxQuestions) {
                 alert("Max questions reached. Forcing a final guess after learning.");
                 this.makePrediction();
             } else {
-                this.thinkingDuration = 1000; // Shorter thinking time after correction
-                // Continue asking
+                this.thinkingDuration = 1000;
                 setTimeout(() => {
                     this.showQuestionScreen();
                     this.askNextQuestion();
@@ -394,7 +398,8 @@ class Game {
 
     resetGame() {
         if (this.state.sessionId) {
-            apiHandler.deleteGameSession(this.state.sessionId); // Attempt to delete on backend
+            // Attempt to delete on backend (APIHandler does not have deleteSession method, so skip for now)
+            // apiHandler.deleteGameSession(this.state.sessionId); 
         }
         this.state = {
             category: null, currentQuestion: null, questionNumber: 0, maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
