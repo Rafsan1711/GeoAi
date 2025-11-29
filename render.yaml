@@ -1,0 +1,28 @@
+# Render.com Blueprint for GeoAI Ultra Backend
+
+services:
+  - type: web
+    name: geoai-ultra-backend
+    env: python
+    region: oregon # or a suitable free tier region
+    plan: starter # Starter plan respects the 512MB RAM limit
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "gunicorn --chdir backend app:app" # Start from the backend directory
+
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: FLASK_DEBUG
+        value: False
+      - key: FIREBASE_DATABASE_URL
+        # CRITICAL: Replace with your actual Firebase URL
+        value: https://your-firebase-project-id-default-rtdb.firebaseio.com/
+      # - key: FIREBASE_API_KEY # Uncomment if you use Auth rules in RTDB
+      #   value: your-firebase-api-key
+
+    healthCheckPath: /health
+    autoDeploy: true
+
+# NOTE: A separate service (e.g. static site) is needed for the frontend (index.html)
