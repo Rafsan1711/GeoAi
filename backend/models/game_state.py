@@ -2,7 +2,7 @@
 Game State - Manages current game session state
 """
 
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple # <--- FIX: Added all needed imports
 from datetime import datetime
 import logging
 import uuid
@@ -45,22 +45,25 @@ class GameState:
         """Create GameState from dictionary (for loading from Firebase)."""
         
         # Reconstruct Items
-        item_objects = [Item.from_dict(item_data) for item_data in data['items_data']]
+        item_objects = [Item.from_dict(item_data) for item_data in data.get('items_data', [])]
         
         # Reconstruct GameState
         game_state = cls(
             session_id=data['session_id'],
             category=data['category'],
             items=item_objects,
-            questions=data['questions']
+            questions=data.get('questions', [])
         )
         
         # Restore state variables
-        game_state.start_time = datetime.fromisoformat(data['start_time'])
-        game_state.questions_asked = data['questions_asked']
-        game_state.asked_question_ids = set(data['asked_question_ids'])
-        game_state.current_question = data['current_question']
-        game_state.answer_history = [(q, a) for q, a in data['answer_history']]
+        # Safely convert ISO format string back to datetime object
+        start_time_str = data.get('start_time')
+        game_state.start_time = datetime.fromisoformat(start_time_str) if start_time_str else datetime.now()
+        
+        game_state.questions_asked = data.get('questions_asked', 0)
+        game_state.asked_question_ids = set(data.get('asked_question_ids', []))
+        game_state.current_question = data.get('current_question')
+        game_state.answer_history = data.get('answer_history', [])
         
         return game_state
 
