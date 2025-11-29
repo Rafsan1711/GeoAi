@@ -1,14 +1,25 @@
 // main.js - Ultra Application Entry Point
 
 /**
- * Global Constants (For UI/Dev Tools)
+ * Global Configuration is expected to be loaded via config.js before this script.
+ * We rely on the global 'CONFIG' variable.
  */
-const CONFIG = window.CONFIG;
+
+// If CONFIG is not defined, we should ensure it is defined (for safety, assuming config.js loads first)
+// The error "Identifier 'CONFIG' has already been declared" means config.js re-declares it.
+// We remove the line 'const CONFIG = window.CONFIG;' which was a bad practice.
 
 /**
  * Initialize the application when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
+    // Check for necessary CONFIG variable loaded from config.js
+    if (typeof CONFIG === 'undefined') {
+        console.error("CRITICAL ERROR: CONFIG object not found. Ensure config.js loads first.");
+        alert("Configuration Error. Please check console and ensure config.js is loaded.");
+        return;
+    }
+    
     console.log('%c🌍 GeoAI Ultra - Maximum Accuracy Mode', 'font-size: 20px; font-weight: bold; color: #f59e0b');
     console.log('%cVersion 3.0 Ultra | Backend Integrated', 'font-size: 12px; color: #94a3b8');
 
@@ -156,6 +167,9 @@ function showConsoleWelcome() {
  * Utility: Toggle debug mode
  */
 window.toggleDebug = () => {
+    // Assuming CONFIG is loaded globally
+    if (typeof CONFIG === 'undefined') return; 
+    
     CONFIG.DEBUG.ENABLED = !CONFIG.DEBUG.ENABLED;
     CONFIG.DEBUG.LOG_ALGORITHM = CONFIG.DEBUG.ENABLED;
     CONFIG.DEBUG.LOG_QUESTIONS = CONFIG.DEBUG.ENABLED;
@@ -179,6 +193,9 @@ window.toggleDebug = () => {
  * Utility: Get game statistics from backend
  */
 window.getStats = async () => {
+    // Assuming apiHandler is loaded globally
+    if (typeof apiHandler === 'undefined') return;
+    
     try {
         const stats = await apiHandler.getStats();
         
@@ -207,7 +224,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // Initial debug exposure
-if (CONFIG.DEBUG.ENABLED) {
+if (typeof CONFIG !== 'undefined' && CONFIG.DEBUG.ENABLED) {
     window.toggleDebug();
 }
 
