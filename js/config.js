@@ -3,7 +3,7 @@
 const CONFIG = {
     // API Configuration
     API: {
-        // CRITICAL: Must be updated to your Render.com backend URL
+        // CRITICAL FIX: Use the actual Render Web Service URL for the Backend
         BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com', 
         TIMEOUT: 10000, // 10 seconds for robustness
         ENDPOINTS: { /* Defined in api_enhanced.js */ }
