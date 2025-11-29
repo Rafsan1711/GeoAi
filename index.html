@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/screens.css">
     <link rel="stylesheet" href="css/animations.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/feedback_ui.css"> <!-- New CSS File -->
     
     <!-- Preload fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,20 +49,20 @@
                         <span style="font-size: 0.4em; color: #f59e0b; margin-left: 0.5rem;">ULTRA</span>
                     </h1>
                     
-                    <p class="brand-tagline">Maximum Accuracy • No Question Limits</p>
+                    <p class="brand-tagline">Maximum Accuracy • Adaptive AI Engine</p>
                     
                     <div class="brand-stats">
                         <div class="stat-badge">
                             <span class="stat-icon">🎯</span>
-                            <span class="stat-text">99% Accuracy</span>
+                            <span class="stat-text">95%+ Accuracy Goal</span>
                         </div>
                         <div class="stat-badge">
-                            <span class="stat-icon">⚡</span>
-                            <span class="stat-text">Decision Tree AI</span>
+                            <span class="stat-icon">🧠</span>
+                            <span class="stat-text">Bayesian Inference</span>
                         </div>
                         <div class="stat-badge">
-                            <span class="stat-icon">🌍</span>
-                            <span class="stat-text">157+ Countries</span>
+                            <span class="stat-icon">💾</span>
+                            <span class="stat-text" id="backendStatus">Loading Backend Status...</span>
                         </div>
                     </div>
                 </div>
@@ -69,26 +70,26 @@
                 <div class="feature-showcase">
                     <div class="feature-card" data-delay="0">
                         <div class="feature-icon-wrapper">
-                            <div class="feature-icon">🧠</div>
+                            <div class="feature-icon">🌳</div>
                         </div>
-                        <h3 class="feature-title">Ultra Algorithm</h3>
-                        <p class="feature-desc">Advanced decision tree with entropy-based information gain</p>
+                        <h3 class="feature-title">Adaptive Decision Tree</h3>
+                        <p class="feature-desc">Multi-stage questioning with conditional entropy.</p>
                     </div>
 
                     <div class="feature-card" data-delay="100">
                         <div class="feature-icon-wrapper">
-                            <div class="feature-icon">🎲</div>
+                            <div class="feature-icon">📈</div>
                         </div>
-                        <h3 class="feature-title">Smart Pruning</h3>
-                        <p class="feature-desc">Eliminates redundant questions using contextual analysis</p>
+                        <h3 class="feature-title">Real-time Learning</h3>
+                        <p class="feature-desc">Submits mistake data to Firebase for continuous model training.</p>
                     </div>
 
                     <div class="feature-card" data-delay="200">
                         <div class="feature-icon-wrapper">
                             <div class="feature-icon">🌟</div>
                         </div>
-                        <h3 class="feature-title">No Limits</h3>
-                        <p class="feature-desc">Ask up to 50 questions for maximum precision</p>
+                        <h3 class="feature-title">Max Precision</h3>
+                        <p class="feature-desc">Ask up to 50 questions for near-perfect certainty.</p>
                     </div>
                 </div>
 
@@ -106,7 +107,7 @@
         <div class="screen" id="categoryScreen">
             <div class="screen-header">
                 <h2 class="screen-title animate-text">Choose Your Quest</h2>
-                <p class="screen-subtitle">Select the type of place you're thinking about</p>
+                <p class="screen-subtitle">Select the type of place you're thinking about. Requires Backend API.</p>
             </div>
 
             <div class="category-grid">
@@ -118,7 +119,7 @@
                         </div>
                         <h3 class="category-name">Countries</h3>
                         <p class="category-description">Nations and territories around the globe</p>
-                        <div class="category-count">157 Items • Ultra Accuracy</div>
+                        <div class="category-count" id="categoryCountCountry">157 Items • Ultra Accuracy</div>
                     </div>
                     <div class="category-hover-effect"></div>
                     <div class="category-shine"></div>
@@ -132,7 +133,7 @@
                         </div>
                         <h3 class="category-name">Cities</h3>
                         <p class="category-description">Metropolitan areas and urban centers</p>
-                        <div class="category-count">500+ Items</div>
+                        <div class="category-count" id="categoryCountCity">500+ Items</div>
                     </div>
                     <div class="category-hover-effect"></div>
                     <div class="category-shine"></div>
@@ -146,7 +147,7 @@
                         </div>
                         <h3 class="category-name">Historic Places</h3>
                         <p class="category-description">Landmarks, monuments, and wonders</p>
-                        <div class="category-count">300+ Items</div>
+                        <div class="category-count" id="categoryCountPlace">300+ Items</div>
                     </div>
                     <div class="category-hover-effect"></div>
                     <div class="category-shine"></div>
@@ -176,17 +177,18 @@
                     <span class="thinking-category" id="thinkingCategory">place</span>
                 </h2>
                 
-                <p class="thinking-subtitle">Ultra AI analyzing... Maximum accuracy mode activated</p>
+                <p class="thinking-subtitle">Ultra AI analyzing data and setting initial strategy...</p>
 
                 <div class="thinking-progress-bar">
+                    <div class="thinking-progress-bg"></div>
                     <div class="thinking-progress-fill"></div>
                     <div class="thinking-progress-glow"></div>
                 </div>
 
                 <div class="thinking-tips">
-                    <div class="tip-item">💭 Think clearly</div>
-                    <div class="tip-item">🎯 Be specific</div>
-                    <div class="tip-item">🔮 Stay focused</div>
+                    <div class="tip-item">💭 Backend Session: Active</div>
+                    <div class="tip-item">🎯 Max Accuracy: 50 Questions</div>
+                    <div class="tip-item">🔮 Learning: Enabled</div>
                 </div>
             </div>
         </div>
@@ -197,8 +199,8 @@
                 <div class="question-header">
                     <div class="progress-section">
                         <div class="progress-info">
-                            <span class="progress-label">Progress</span>
-                            <span class="progress-counter" id="progressText">Question 1 / 50</span>
+                            <span class="progress-label">Questions</span>
+                            <span class="progress-counter" id="progressText">Question 0 / 50</span>
                         </div>
                         <div class="progress-bar-container">
                             <div class="progress-bar-bg"></div>
@@ -231,7 +233,7 @@
                     <div class="question-bubble">
                         <div class="bubble-shine"></div>
                         <p class="question-text" id="questionText">Loading question...</p>
-                        <div class="typing-indicator">
+                        <div class="typing-indicator" id="typingIndicator">
                             <span class="dot"></span>
                             <span class="dot"></span>
                             <span class="dot"></span>
@@ -241,50 +243,75 @@
 
                 <div class="answers-grid" id="answersContainer">
                     <button class="answer-btn answer-yes" onclick="game.answerQuestion('yes')" data-hotkey="1">
-                        <div class="answer-icon-circle">
-                            <span class="answer-icon">✓</span>
-                        </div>
+                        <div class="answer-icon-circle"><span class="answer-icon">✓</span></div>
                         <span class="answer-label">Yes</span>
                         <div class="answer-ripple"></div>
                         <span class="answer-hotkey">1</span>
                     </button>
 
                     <button class="answer-btn answer-probably" onclick="game.answerQuestion('probably')" data-hotkey="2">
-                        <div class="answer-icon-circle">
-                            <span class="answer-icon">↗</span>
-                        </div>
+                        <div class="answer-icon-circle"><span class="answer-icon">↗</span></div>
                         <span class="answer-label">Probably</span>
                         <div class="answer-ripple"></div>
                         <span class="answer-hotkey">2</span>
                     </button>
 
                     <button class="answer-btn answer-maybe" onclick="game.answerQuestion('dontknow')" data-hotkey="3">
-                        <div class="answer-icon-circle">
-                            <span class="answer-icon">?</span>
-                        </div>
+                        <div class="answer-icon-circle"><span class="answer-icon">?</span></div>
                         <span class="answer-label">Don't Know</span>
                         <div class="answer-ripple"></div>
                         <span class="answer-hotkey">3</span>
                     </button>
 
                     <button class="answer-btn answer-probably-not" onclick="game.answerQuestion('probablynot')" data-hotkey="4">
-                        <div class="answer-icon-circle">
-                            <span class="answer-icon">↘</span>
-                        </div>
+                        <div class="answer-icon-circle"><span class="answer-icon">↘</span></div>
                         <span class="answer-label">Probably Not</span>
                         <div class="answer-ripple"></div>
                         <span class="answer-hotkey">4</span>
                     </button>
 
                     <button class="answer-btn answer-no" onclick="game.answerQuestion('no')" data-hotkey="5">
-                        <div class="answer-icon-circle">
-                            <span class="answer-icon">✗</span>
-                        </div>
+                        <div class="answer-icon-circle"><span class="answer-icon">✗</span></div>
                         <span class="answer-label">No</span>
                         <div class="answer-ripple"></div>
                         <span class="answer-hotkey">5</span>
                     </button>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Guess Screen (New) -->
+        <div class="screen" id="guessScreen">
+            <div class="guess-wrapper">
+                 <div class="guess-icon">🤔</div>
+                 <h2 class="guess-status" id="guessStatus">Thinking... Finalizing Prediction...</h2>
+                 
+                 <div class="guess-card">
+                    <div class="guess-spinner hidden" id="guessSpinner"></div>
+                    <div class="guess-content">
+                        <h3 class="guess-name" id="guessName">Loading Guess...</h3>
+                        <div class="guess-confidence">
+                            <span class="confidence-label">Confidence:</span>
+                            <span class="confidence-value" id="guessConfidence">0%</span>
+                        </div>
+                        <p class="guess-info" id="guessInfo">Loading details...</p>
+                        <div class="guess-stats">
+                            <div class="stat-badge">
+                                <span class="stat-icon">❓</span>
+                                <span class="stat-text" id="questionsCount">0</span> Questions
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+                 
+                 <div class="guess-actions" id="guessButtons">
+                    <button class="btn btn-primary btn-large" id="guessYesBtn">
+                        <span class="btn-content"><span class="btn-text">Yes, That's It!</span></span>
+                    </button>
+                    <button class="btn btn-secondary btn-large" id="guessNoBtn">
+                        <span class="btn-content"><span class="btn-text">No, You're Wrong!</span></span>
+                    </button>
+                 </div>
             </div>
         </div>
 
@@ -333,9 +360,17 @@
                         <div class="stat-divider"></div>
                         
                         <div class="stat-box">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-value" id="maxConfidenceReached">99</div>
+                            <div class="stat-label">Max Confidence</div>
+                        </div>
+                        
+                        <div class="stat-divider"></div>
+                        
+                        <div class="stat-box">
                             <div class="stat-icon">🎯</div>
                             <div class="stat-value" id="possibleMatches">1</div>
-                            <div class="stat-label">Possible Matches</div>
+                            <div class="stat-label">Items Remaining</div>
                         </div>
                     </div>
 
@@ -357,6 +392,7 @@
         </div>
 
         <!-- Engine Info Screen -->
+        <!-- Content remains the same as in the original, excluding the implementation details of the learning module -->
         <div class="screen" id="engineScreen">
             <div class="screen-header">
                 <div class="engine-icon">⚙️</div>
@@ -371,39 +407,39 @@
                         <h3 class="engine-card-title">Entropy-Based Information Gain</h3>
                     </div>
                     <p class="engine-card-text">
-                        Uses Shannon entropy calculations to select questions with maximum information gain, 
-                        efficiently splitting the possibility space with each answer.
+                        Uses Shannon entropy to select questions with maximum data separation, 
+                        ensuring the fastest path to a solution.
                     </p>
                     <div class="engine-card-badge">Core Algorithm</div>
                 </div>
 
                 <div class="engine-card">
                     <div class="engine-card-header">
-                        <span class="engine-card-icon">🌳</span>
-                        <h3 class="engine-card-title">Decision Tree with Smart Pruning</h3>
+                        <span class="engine-card-icon">🧠</span>
+                        <h3 class="engine-card-title">Bayesian Belief Propagation</h3>
                     </div>
                     <p class="engine-card-text">
-                        Multi-stage questioning strategy that eliminates redundant questions and adapts 
-                        based on previous answers for optimal accuracy.
+                        Updates prior probabilities and propagates belief changes across related attributes
+                        after each answer to improve contextual awareness.
                     </p>
-                    <div class="engine-card-badge">Path Optimization</div>
+                    <div class="engine-card-badge">Contextual Learning</div>
                 </div>
 
                 <div class="engine-card">
                     <div class="engine-card-header">
-                        <span class="engine-card-icon">📊</span>
+                        <span class="engine-card-icon">📈</span>
                         <h3 class="engine-card-title">Adaptive Confidence Thresholds</h3>
                     </div>
                     <p class="engine-card-text">
-                        Dynamic stopping criteria that requires 99% confidence early, adjusting based on 
-                        question count for maximum precision.
+                        Dynamic stopping criteria that requires high confidence early, adjusting based on 
+                        question count for maximum precision over premature guessing.
                     </p>
                     <div class="engine-card-badge">Precision Control</div>
                 </div>
 
                 <div class="engine-card engine-card-full">
                     <div class="engine-card-header">
-                        <span class="engine-card-icon">📈</span>
+                        <span class="engine-card-icon">📊</span>
                         <h3 class="engine-card-title">Ultra Answer Weight System</h3>
                     </div>
                     <div class="weight-system">
@@ -433,7 +469,7 @@
                             <div class="weight-bar">
                                 <div class="weight-fill" style="width: 2%; background: #ef4444"></div>
                             </div>
-                            <span class="weight-value">×0.001</span>
+                            <span class="weight-value">×0.005</span>
                         </div>
                     </div>
                 </div>
@@ -456,7 +492,7 @@
         <div class="footer-info">
             <span class="footer-badge">
                 <span class="pulse-dot"></span>
-                <span>99% Accuracy • No Limits</span>
+                <span>50 Q-Limit • Real-time API</span>
             </span>
         </div>
     </footer>
@@ -468,12 +504,33 @@
             <p class="loading-text">Loading Ultra AI Engine...</p>
         </div>
     </div>
+    
+    <!-- Feedback Modal (New UI Element) -->
+    <div class="feedback-modal-overlay" id="feedbackModal">
+        <div class="feedback-modal">
+            <h3 class="modal-title">Oops! My Bad. 😔</h3>
+            <p class="modal-subtitle">You said my guess, <span class="guess-result-name" id="guessResultName"></span>, was wrong.</p>
+            
+            <div class="modal-content">
+                <p class="content-prompt">Help me learn. Which item were you actually thinking of?</p>
+                <div class="actual-answer-list" id="actualAnswerList">
+                    <!-- Buttons for top 50 remaining items will be injected here -->
+                    <p class="loading-text">Loading possible matches...</p>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                 <button class="btn btn-secondary" onclick="game.resetGame()">Start Over</button>
+                 <button class="btn btn-primary" onclick="game.submitCorrection(prompt('Please enter the correct answer name:'))">Enter Manually</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
-    <script src="js/algorithm.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/game.js"></script>
+    <!-- <script src="js/algorithm.js"></script> <- DELETED -->
+    <script src="js/api_enhanced.js"></script>
+    <script src="js/game_enhanced.js"></script>
     <script src="js/animations.js"></script>
     <script src="js/main.js"></script>
 </body>
