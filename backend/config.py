@@ -8,11 +8,12 @@ import os
 # --- SERVICE CONFIGURATION ---
 
 FIREBASE_CONFIG = {
-    'databaseURL': os.getenv('FIREBASE_DATABASE_URL', "https://default-rtdb.firebaseio.com"),
+    # CRITICAL: This MUST be set as an environment variable on Render
+    'databaseURL': os.getenv('FIREBASE_DATABASE_URL', "https://default-rtdb.firebaseio.com"), 
     'apiKey': os.getenv('FIREBASE_API_KEY', None) 
 }
 
-# --- GAME & ALGORITHM CONFIGURATION ---
+# --- GAME & ALGORITHM CONFIGURATION (UNCHANGED) ---
 
 GAME_CONFIG = {
     'max_questions': 50,  
@@ -20,13 +21,12 @@ GAME_CONFIG = {
     'soft_filter_threshold': 1e-6, 
     'enable_learning': True, 
     
-    # Adaptive Confidence Thresholds (Guessing Logic)
     'confidence_threshold_stage_1': 99.0,  
     'confidence_threshold_stage_2': 98.0,  
     'confidence_threshold_stage_3': 95.0,  
 }
 
-# --- DEPLOYMENT & LOGGING ---
+# --- DEPLOYMENT & LOGGING (UNCHANGED) ---
 
 DEPLOYMENT_CONFIG = {
     'debug': os.getenv('FLASK_DEBUG', 'False').lower() == 'true',
@@ -35,7 +35,7 @@ DEPLOYMENT_CONFIG = {
     'log_level': os.getenv('LOG_LEVEL', 'INFO')
 }
 
-# --- ALGORITHM TUNING PARAMETERS ---
+# --- ALGORITHM TUNING PARAMETERS (UNCHANGED) ---
 
 ALGORITHM_PARAMS = {
     'question_score_weights': {
