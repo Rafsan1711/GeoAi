@@ -1,63 +1,63 @@
-"""
-GeoAI Backend Configuration - Centralized Management
-All settings, API keys, and deployment parameters are stored here.
-"""
+// config.js - Ultra Configuration for Maximum Accuracy
 
-import os
+const CONFIG = {
+    // API Configuration
+    API: {
+        // CRITICAL FIX: Use the actual Render Web Service URL for the Backend
+        BASE_URL: 'https://sliding-puzzle-with-solver-ida-1.onrender.com', 
+        TIMEOUT: 10000, // 10 seconds for robustness
+        ENDPOINTS: { /* Defined in api_enhanced.js */ }
+    },
 
-# --- SERVICE CONFIGURATION ---
+    // Game Configuration - ULTRA MODE
+    GAME: {
+        MAX_QUESTIONS: 50,  // Max limit
+        MIN_CONFIDENCE_TO_GUESS: 95, // Min confidence to stop asking
+        EARLY_STOP_CONFIDENCE: 99,  // Early stop
+        MIN_ITEMS_TO_GUESS: 1,  // Continue until 1 item
+        THINKING_DURATION: 3000, // Longer thinking time for better user experience
+        QUESTION_DELAY: 500, // Delay between questions
+        
+        // Advanced stopping criteria (Handled by backend)
+        ADAPTIVE_STOPPING: true,
+    },
 
-FIREBASE_CONFIG = {
-    'databaseURL': os.getenv('FIREBASE_DATABASE_URL', "https://default-rtdb.firebaseio.com"),
-    'apiKey': os.getenv('FIREBASE_API_KEY', None) 
-}
-
-# --- GAME & ALGORITHM CONFIGURATION ---
-
-GAME_CONFIG = {
-    'max_questions': 50,  
-    'min_items_to_guess': 1,  
-    'soft_filter_threshold': 1e-6, 
-    'enable_learning': True, 
-    
-    # Adaptive Confidence Thresholds (Guessing Logic)
-    'confidence_threshold_stage_1': 99.0,  
-    'confidence_threshold_stage_2': 98.0,  
-    'confidence_threshold_stage_3': 95.0,  
-}
-
-# --- DEPLOYMENT & LOGGING ---
-
-DEPLOYMENT_CONFIG = {
-    'debug': os.getenv('FLASK_DEBUG', 'False').lower() == 'true',
-    'port': int(os.getenv('PORT', 8000)),
-    'version': '3.0.0-ULTRA',
-    'log_level': os.getenv('LOG_LEVEL', 'INFO')
-}
-
-# --- ALGORITHM TUNING PARAMETERS ---
-
-ALGORITHM_PARAMS = {
-    'question_score_weights': {
-        'information_gain': 0.45,
-        'strategy_alignment': 0.30,
-        'bayesian_belief': 0.15,
-        'balance_split': 0.05,
-        'feature_importance': 0.05
+    // Data Paths
+    DATA: {
+        PATHS: {
+            COUNTRIES: 'data/countries.json',
+            CITIES: 'data/cities.json',
+            PLACES: 'data/places.json',
+            QUESTIONS: 'data/questions.json' // New consolidated question bank
+        }
     },
     
-    'likelihood_multipliers': {
-        'yes': {'match': 5.0, 'mismatch': 0.005},
-        'probably': {'match': 2.5, 'mismatch': 0.2},
-        'dontknow': {'match': 1.0, 'mismatch': 1.0},
-        'probablynot': {'match': 0.2, 'mismatch': 2.5},
-        'no': {'match': 0.005, 'mismatch': 5.0}
+    // UI Colors (Used for dynamic status display)
+    COLORS: {
+        SUCCESS: '#10b981',
+        ERROR: '#ef4444',
+        PRIMARY: '#6366f1'
     },
-    
-    'confidence_weights': {
-        'probability_gap': 0.40,
-        'normalized_prob': 0.30,
-        'item_count': 0.20,
-        'entropy': 0.10
+
+    // Feature Flags (Frontend only)
+    FEATURES: {
+        USE_PYTHON_API: true, // Now mandatory
+        USE_SESSION_API: true, // Now mandatory
+        ENABLE_PWA: false,
+    },
+
+    // UI Configuration
+    UI: {
+        ENABLE_ANIMATIONS: true,
+        CONFETTI_COUNT: 50,
+        PARTICLE_COUNT: 30
+    },
+
+    // Debug Configuration
+    DEBUG: {
+        ENABLED: true, // Start in Debug mode for easier initial testing
+        LOG_API_CALLS: true,
+        LOG_ALGORITHM: false, // Algorithm logic is now on the backend
+        LOG_QUESTIONS: false
     }
-}
+};
