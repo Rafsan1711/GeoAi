@@ -1,230 +1,238 @@
 """
-Question Selector - Pure Python Implementation
-V2: Multi-stage, adaptive, non-redundant question selection.
+Inference Engine - Pure Python Implementation
+Main AI Brain - Orchestrates all core components and implements game flow.
 """
 
 import math
-import random
-from typing import List, Dict, Set, Tuple, Optional # <--- FIX: Added Optional
-from collections import defaultdict
 import logging
+from typing import List, Dict, Optional, Tuple
+from collections import defaultdict
+import uuid
 
-from models.item_model import Item
+# Core components (Directly import from package sub-modules)
+from .question_selector import QuestionSelector
+from .probability_manager import ProbabilityManager
+from .confidence_calculator import ConfidenceCalculator
 from algorithms.information_gain import InformationGain
 from algorithms.bayesian_network import BayesianNetwork
+from models.game_state import GameState
+from models.item_model import Item
 from backend.config import GAME_CONFIG
+from services.firebase_service import FirebaseService
 
 logger = logging.getLogger(__name__)
 
 
-class QuestionSelector:
-    """Selects the next best question based on an advanced scoring model."""
+class InferenceEngine:
+    """Main AI Engine - Pure Python"""
     
     def __init__(self):
-        self.info_gain_calc = InformationGain()
-        self.stage_map = self._get_default_stage_map()
-        self.feature_importance = {} # Absorbs former feature_importance.py
-    
-    def _get_default_stage_map(self) -> Dict[str, int]:
-        """Maps attributes to a heuristic stage for targeted questioning."""
-        return {
-            'continent': 0, 'region': 1, 'subRegion': 1, # Stage 0-1: Location
-            'hasCoast': 2, 'landlocked': 2, 'isIsland': 2, 'hasMountains': 2, 
-            'climate': 2, 'avgTemperature': 2, # Stage 2: Geographic/Environmental
-            'population': 3, 'size': 3, # Stage 3: Demographic
-            'government': 4, 'mainReligion': 4, 'driveSide': 4, 'exports': 4, # Stage 4: Political/Economic
-            'language': 5, 'famousFor': 5, 'neighbors': 5, 'flagColors': 5, # Stage 5: Cultural/Specific
-            'nationalDish': 5, 'funFact': 5, # Fine-grained
-            'country': 6, 'city': 6, 'name': 6 # Guessing/Final Check
+        self.question_selector = QuestionSelector()
+        self.probability_manager = ProbabilityManager()
+        self.confidence_calculator = ConfidenceCalculator()
+        self.information_gain = InformationGain()
+        self.bayesian_network = BayesianNetwork()
+        self.firebase_service = FirebaseService() # Firebase integration
+        
+        self.active_games: Dict[str, GameState] = {}
+        
+        self.session_stats = {
+            'games_played': 0,
+            'successful_guesses': 0,
+            'average_questions': 0
         }
+        
+        logger.info("Inference Engine initialized (V3 Ultra)")
     
-    def get_attribute_stage(self, attribute: str) -> int:
-        """Returns the stage for a given attribute."""
-        return self.stage_map.get(attribute, 5)
-
-    def calculate_feature_importance(self, items: List[Item], questions: List[Dict]):
-        """
-        Initial calculation of feature importance (Gini Impurity & Coverage).
-        This score is static per category and done once at game start.
-        """
-        all_attributes = set(q['attribute'] for q in questions)
+    def start_new_game(self, category: str, items: List[Dict], 
+                       questions: List[Dict]) -> GameState:
+        """Start new game session, initializing probability and network."""
         
-        for attr in all_attributes:
-            values = []
-            defined_count = 0
-            
-            for item in items:
-                val = item.attributes.get(attr)
-                if val is not None:
-                    defined_count += 1
-                    if isinstance(val, list):
-                        values.extend(val)
-                    else:
-                        values.append(val)
-            
-            if not values:
-                self.feature_importance[attr] = 0.0
-                continue
-                
-            # Gini Impurity (Measures diversity of values)
-            value_counts = defaultdict(int)
-            for v in values:
-                value_counts[str(v)] += 1
-            total = sum(value_counts.values())
-            gini = 1.0 - sum((count/total)**2 for count in value_counts.values())
-            
-            # Coverage (Measures how many items have this attribute defined)
-            coverage = defined_count / len(items) if items else 0.0
-            
-            # Weighted Importance
-            importance = (gini * 0.6) + (coverage * 0.4)
-            
-            self.feature_importance[attr] = importance
+        session_id = str(uuid.uuid4())
+        item_objects = [Item.from_dict({**item_dict, 'probability': 0.0}) for item_dict in items]
         
-        logger.debug(f"Feature importance calculated for {len(all_attributes)} attributes.")
-
-    def select_best_question(self, available_questions: List[Dict], active_items: List[Item], 
-                             bayesian_network: BayesianNetwork, game_state_history: List[Tuple[Dict, str]]) -> Optional[Dict]:
-        """
-        Selects the single best question using a blended score model.
-        """
-        if len(active_items) <= GAME_CONFIG['min_items_to_guess'] or not active_items:
-            return None
+        initial_prob = 1.0 / len(item_objects) if item_objects else 0.0
+        for item in item_objects:
+            item.probability = initial_prob
         
-        questions_to_score = self._prune_redundant_questions(available_questions, active_items, game_state_history)
-        
-        if not questions_to_score:
-            return None
-
-        # Determine current heuristic stage for strategic scoring
-        questions_asked = len(game_state_history)
-        current_stage = 5
-        if questions_asked < 5: current_stage = 0
-        elif questions_asked < 12: current_stage = 2
-        elif questions_asked < 25: current_stage = 4
-        
-        # Score each question
-        question_scores = []
-        
-        for question in questions_to_score:
-            # 1. Information Gain (EIG) - CRITICAL: How well does it split?
-            ig_score = self.info_gain_calc.calculate(
-                active_items, 
-                question['attribute'], 
-                question['value']
-            ) * 0.45 
-            
-            # 2. Strategy Score - High weight for aligning with the current stage
-            q_stage = self.get_attribute_stage(question['attribute'])
-            strategy_bonus = 0.0
-            if q_stage <= current_stage:
-                strategy_bonus = 0.30 # Favor questions in or before the current stage
-            elif q_stage == current_stage + 1:
-                 strategy_bonus = 0.15 # Allow questions for the next stage
-            strategy_score = strategy_bonus
-            
-            # 3. Bayesian Score - Does it target an attribute with a strong belief?
-            bn_score = bayesian_network.score_question(question) * 0.15
-            
-            # 4. Balance Score - Favor 50/50 splits (most information-rich)
-            balance_score = self._score_question_by_balance(active_items, question) * 0.05
-            
-            # 5. Feature Importance - Boost based on overall attribute value
-            importance_score = self.feature_importance.get(question['attribute'], 0.5) * 0.05
-            
-            # Calculate total score
-            total_score = ig_score + strategy_score + bn_score + balance_score + importance_score
-            
-            question_scores.append({
-                'question': question,
-                'score': total_score,
-                'ig': ig_score, 'bn': bn_score, 'strat': strategy_score,
-                'balance': balance_score, 'importance': importance_score
-            })
-        
-        # Sort and return best question
-        question_scores.sort(key=lambda x: x['score'], reverse=True)
-        
-        if not question_scores:
-            return None
-            
-        best = question_scores[0]
-        logger.info(
-            f"Question Selected: {best['question']['question']} (Score: {best['score']:.3f} | "
-            f"IG:{best['ig']:.2f}, BN:{best['bn']:.2f}, Strat:{best['strat']:.2f}, Bal:{best['balance']:.2f})"
+        game_state = GameState(
+            session_id=session_id,
+            category=category,
+            items=item_objects,
+            questions=questions
         )
-        return best['question']
+        
+        self.active_games[session_id] = game_state
+        
+        self.bayesian_network.build_network(item_objects, questions)
+        self.question_selector.calculate_feature_importance(item_objects, questions)
+        
+        self.firebase_service.save_game_state(game_state)
+        
+        logger.info(f"New game started: {game_state.session_id}")
+        return game_state
+    
+    def get_game_state(self, session_id: str) -> Optional[GameState]:
+        """Retrieves game state from in-memory cache or Firebase."""
+        if session_id in self.active_games:
+            return self.active_games[session_id]
+        
+        game_state_dict = self.firebase_service.load_game_state(session_id)
+        if game_state_dict:
+            try:
+                game_state = GameState.from_dict(game_state_dict)
+                self.active_games[session_id] = game_state
+                logger.info(f"Game state loaded from Firebase: {session_id}")
+                self.bayesian_network.build_network(game_state.items, game_state.questions)
+                self.question_selector.calculate_feature_importance(game_state.items, game_state.questions)
+                return game_state
+            except Exception as e:
+                logger.error(f"Failed to reconstruct GameState from dict: {e}")
+                return None
 
-    def _prune_redundant_questions(self, available_questions: List[Dict], active_items: List[Item], 
-                                    game_state_history: List[Tuple[Dict, str]]) -> List[Dict]:
-        """Filters out questions that are unlikely to yield new information."""
-        
-        asked_attributes = {q[0]['attribute'] for q in game_state_history}
-        asked_questions_text = {q[0]['question'] for q in game_state_history}
-        
-        filtered_questions = []
-        for question in available_questions:
-            # 1. Already asked exact question
-            if question['question'] in asked_questions_text:
-                continue
-            
-            attribute = question['attribute']
-            value = question['value']
-            
-            # 2. Trivial Split Check: Skip if almost all remaining items have the same value for this attribute.
-            unique_values = set()
-            for item in active_items:
-                item_value = item.attributes.get(attribute)
-                if item_value is not None:
-                    if isinstance(item_value, list):
-                        unique_values.update(str(v) for v in item_value)
-                    else:
-                        unique_values.add(str(item_value))
-            
-            # If only one unique value remains among all active items for this attribute
-            if len(unique_values) <= 1 and attribute in asked_attributes:
-                continue
-                
-            # 3. Prevent over-asking a general attribute (e.g., 'hasMountains')
-            attribute_count = sum(1 for q, _ in game_state_history if q[0]['attribute'] == attribute)
-            if attribute_count >= 4 and attribute not in ['famousFor', 'neighbors']:
-                 # Still allow very specific ones, but prune generic ones if abused
-                 if self.get_attribute_stage(attribute) < 5:
-                     continue
+        return None
 
-            # 4. Filter out 'no' answers if the set is small.
-            if len(active_items) <= 10 and attribute in asked_attributes and self.get_attribute_stage(attribute) <= 1:
-                # If the question targets a broad category already largely filtered by its attribute
-                if attribute in ['continent', 'region'] and question['value'] not in unique_values:
-                    # Skip asking about an empty continent/region
-                    continue
-            
-            filtered_questions.append(question)
-            
-        return filtered_questions
+    def get_next_question(self, game_state: GameState) -> Optional[Dict]:
+        """Select best next question using multi-criteria scoring."""
+        
+        if self._should_stop_asking(game_state):
+            logger.info(f"Session {game_state.session_id}: Stopping condition met.")
+            return None
+        
+        active_items = game_state.get_active_items()
+        available_questions = game_state.get_available_questions()
+        
+        if len(active_items) == 0 or not available_questions:
+            return None
+        
+        selected_question = self.question_selector.select_best_question(
+            available_questions=available_questions,
+            active_items=active_items,
+            bayesian_network=self.bayesian_network,
+            game_state_history=game_state.answer_history
+        )
+        
+        if selected_question:
+            game_state.mark_question_asked(selected_question)
+            logger.info(
+                f"Session {game_state.session_id}: Q{game_state.questions_asked} selected: {selected_question['question']}"
+            )
+            self.firebase_service.save_game_state(game_state)
+        
+        return selected_question
+    
+    def process_answer(self, game_state: GameState, answer: str) -> Dict:
+        """Process user answer, update probabilities, and propagate beliefs."""
+        if not game_state.current_question:
+            raise ValueError("No active question to answer.")
+        
+        question = game_state.current_question
+        
+        game_state.record_answer(answer)
+        
+        active_items = game_state.get_active_items()
+        for item in active_items:
+            item.probability = self.probability_manager.update_item_probability(
+                item, question, answer
+            )
+        
+        self.probability_manager.normalize_probabilities(game_state.items)
+        self.probability_manager.soft_filter(game_state.items, top_k=GAME_CONFIG['min_items_to_guess'] + 2)
+        
+        self.bayesian_network.update_beliefs(question, answer, game_state.items)
+        
+        current_active_items = game_state.get_active_items()
+        confidence = self.confidence_calculator.calculate(current_active_items)
+        top_item = game_state.get_top_prediction()
+        
+        self.firebase_service.save_game_state(game_state)
+        
+        logger.info(
+            f"Session {game_state.session_id}: Answer processed ({answer}) | "
+            f"Items: {len(current_active_items)} | Confidence: {confidence:.1f}%"
+        )
+        
+        return {
+            'confidence': confidence,
+            'active_items_count': len(current_active_items),
+            'top_prediction': top_item.to_dict() if top_item else None,
+            'should_stop': self._should_stop_asking(game_state)
+        }
 
-    def _score_question_by_balance(self, items: List[Item], question: Dict) -> float:
-        """Scores a question based on how close the split is to a 50/50 ratio by item count."""
-        if not items:
-            return 0.0
+    def get_final_prediction(self, game_state: GameState) -> Dict:
+        """Get final prediction and clean up session."""
         
-        total = 0
-        matches = 0
-        test_question = {'attribute': question['attribute'], 'value': question['value']}
+        top_item = game_state.get_top_prediction()
+        active_items = game_state.get_active_items()
         
-        for item in items:
-            if item.eliminated:
-                continue
-                
-            total += 1
-            if item.matches_question(test_question):
-                matches += 1
+        confidence = self.confidence_calculator.calculate(active_items)
         
-        if total == 0:
-            return 0.0
+        if top_item:
+            sorted_items = sorted(
+                active_items, 
+                key=lambda x: x.probability, 
+                reverse=True
+            )
+            alternatives = [item.to_dict() for item in sorted_items[1:4]]
+            
+            self.firebase_service.log_game_result(game_state, top_item.name, confidence, False, "Final Guess")
+            self._update_session_stats(confidence >= GAME_CONFIG['confidence_threshold_stage_3'])
+        else:
+            alternatives = []
+
+        if game_state.session_id in self.active_games:
+            del self.active_games[game_state.session_id]
         
-        ratio = matches / total
-        # Formula: 1 - |0.5 - ratio| * 2. Range [0, 1]. Max at ratio=0.5.
-        balance = 1.0 - abs(0.5 - ratio) * 2
+        return {
+            'prediction': top_item.to_dict() if top_item else None,
+            'confidence': int(confidence),
+            'alternatives': alternatives,
+            'questions_asked': game_state.questions_asked,
+            'total_items': len(game_state.items),
+            'remaining_items': len(active_items)
+        }
         
-        return balance
+    def _should_stop_asking(self, game_state: GameState) -> bool:
+        """Check if stopping condition is met using adaptive logic."""
+        active_items = game_state.get_active_items()
+        
+        if len(active_items) <= GAME_CONFIG['min_items_to_guess']:
+            return True
+        if game_state.questions_asked >= GAME_CONFIG['max_questions']:
+            return True
+        if not game_state.get_available_questions():
+            return True
+
+        confidence = self.confidence_calculator.calculate(active_items)
+        
+        return self.confidence_calculator.should_make_guess(
+            confidence, 
+            game_state.questions_asked
+        )
+
+    def _update_session_stats(self, success: bool):
+        """Update local, temporary session statistics (not persisted)"""
+        self.session_stats['games_played'] += 1
+        if success:
+            self.session_stats['successful_guesses'] += 1
+        
+        games = self.session_stats['games_played']
+        prev_avg = self.session_stats['average_questions']
+        
+        # Guard against key error if game session is already deleted from active_games (which it is)
+        current_qs = games.questions_asked if games > 0 else 0 
+        
+        new_avg = ((prev_avg * (games - 1)) + current_qs) / games
+        self.session_stats['average_questions'] = new_avg
+    
+    def get_session_stats(self) -> Dict:
+        """Get local session stats"""
+        games = self.session_stats['games_played']
+        success = self.session_stats['successful_guesses']
+        
+        return {
+            'games_played': games,
+            'successful_guesses': success,
+            'success_rate': (success / games * 100) if games > 0 else 0,
+            'average_questions': self.session_stats['average_questions']
+        }
