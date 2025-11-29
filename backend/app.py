@@ -9,15 +9,15 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables from .env file (must be done before config import)
 load_dotenv()
 
-# Import config and core components
-from backend.config import DEPLOYMENT_CONFIG
-from core.inference_engine import InferenceEngine
-from utils.data_loader import DataLoader
-from utils.logger import setup_logger
-from models.item_model import Item # For manual filtering fallback
+# CRITICAL FIX: Use direct relative imports for Flask application context
+from .backend.config import DEPLOYMENT_CONFIG # NOTE: Import from the root package
+from .core.inference_engine import InferenceEngine
+from .utils.data_loader import DataLoader
+from .utils.logger import setup_logger
+from .models.item_model import Item 
 
 # Setup logging
 logger = setup_logger('geoai', level=DEPLOYMENT_CONFIG['log_level'])
@@ -27,6 +27,7 @@ app = Flask(__name__)
 CORS(app) # Enable CORS for frontend communication
 
 # Global instances
+# NOTE: data_dir is relative to the directory Gunicorn starts in ('backend')
 data_loader = DataLoader(data_dir='data')
 inference_engine = InferenceEngine()
 
@@ -36,6 +37,9 @@ def _get_game_state(session_id: str):
     """Utility to retrieve game state or return error."""
     game_state = inference_engine.get_game_state(session_id)
     if not game_state:
+        # NOTE: Game state cleanup in cache happens here, not on prediction.
+        if session_id in inference_engine.active_games:
+            del inference_engine.active_games[session_id]
         return None, jsonify({'error': 'Invalid or expired session'}), 400
     return game_state, None, None
 
@@ -163,7 +167,7 @@ def get_prediction():
         # Get final prediction
         result = inference_engine.get_final_prediction(game_state)
         
-        # Clean up session (done inside get_final_prediction in actual engine)
+        # Clean up session in Firebase
         inference_engine.firebase_service.delete_game_state(session_id)
         
         return jsonify(result)
@@ -192,7 +196,7 @@ def submit_feedback():
         # Find the actual item in the possible items list
         actual_item = next((item for item in game_state.items if item.name.lower() == actual_answer_name.lower()), None)
         
-        if GAME_CONFIG['enable_learning']:
+        if actual_item:
             # Log failure for learning
             inference_engine.firebase_service.log_game_result(
                 game_state, 
@@ -203,8 +207,7 @@ def submit_feedback():
                 actual_answer=actual_answer_name
             )
         
-        # If the actual item exists, boost its probability for the continuation round
-        if actual_item:
+            # If the actual item exists, boost its probability for the continuation round
             for item in game_state.items:
                 if item.id == actual_item.id:
                     item.probability *= 10.0 # Aggressive boost
@@ -216,8 +219,8 @@ def submit_feedback():
             inference_engine.probability_manager.soft_filter(game_state.items)
 
         # Check if max questions reached or just return success to continue
-        if game_state.questions_asked >= GAME_CONFIG['max_questions']:
-            return jsonify({'message': 'Max questions reached, forcing final prediction.'}), 400
+        if game_state.questions_asked >= DEPLOYMENT_CONFIG['max_questions']:
+            return jsonify({'message': 'Max questions reached, forcing final prediction.', 'questions_asked': game_state.questions_asked}), 400
 
         # Save the game state after boosting
         inference_engine.firebase_service.save_game_state(game_state)
@@ -244,7 +247,7 @@ def get_stats():
             'data_stats': data_stats,
             'config': {
                 'version': DEPLOYMENT_CONFIG['version'],
-                'max_questions': GAME_CONFIG['max_questions']
+                'max_questions': DEPLOYMENT_CONFIG['max_questions']
             }
         })
         
