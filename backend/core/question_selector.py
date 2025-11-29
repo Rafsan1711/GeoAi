@@ -5,7 +5,7 @@ V2: Multi-stage, adaptive, non-redundant question selection.
 
 import math
 import random
-from typing import List, Dict, Set, Tuple, Optional # <--- FIX: Added Optional
+from typing import List, Dict, Set, Tuple, Optional 
 from collections import defaultdict
 import logging
 
@@ -23,30 +23,24 @@ class QuestionSelector:
     def __init__(self):
         self.info_gain_calc = InformationGain()
         self.stage_map = self._get_default_stage_map()
-        self.feature_importance = {} # Absorbs former feature_importance.py
+        self.feature_importance = {}
     
     def _get_default_stage_map(self) -> Dict[str, int]:
-        """Maps attributes to a heuristic stage for targeted questioning."""
         return {
-            'continent': 0, 'region': 1, 'subRegion': 1, # Stage 0-1: Location
+            'continent': 0, 'region': 1, 'subRegion': 1,
             'hasCoast': 2, 'landlocked': 2, 'isIsland': 2, 'hasMountains': 2, 
-            'climate': 2, 'avgTemperature': 2, # Stage 2: Geographic/Environmental
-            'population': 3, 'size': 3, # Stage 3: Demographic
-            'government': 4, 'mainReligion': 4, 'driveSide': 4, 'exports': 4, # Stage 4: Political/Economic
-            'language': 5, 'famousFor': 5, 'neighbors': 5, 'flagColors': 5, # Stage 5: Cultural/Specific
-            'nationalDish': 5, 'funFact': 5, # Fine-grained
-            'country': 6, 'city': 6, 'name': 6 # Guessing/Final Check
+            'climate': 2, 'avgTemperature': 2,
+            'population': 3, 'size': 3,
+            'government': 4, 'mainReligion': 4, 'driveSide': 4, 'exports': 4,
+            'language': 5, 'famousFor': 5, 'neighbors': 5, 'flagColors': 5,
+            'nationalDish': 5, 'funFact': 5,
+            'country': 6, 'city': 6, 'name': 6
         }
     
     def get_attribute_stage(self, attribute: str) -> int:
-        """Returns the stage for a given attribute."""
         return self.stage_map.get(attribute, 5)
 
     def calculate_feature_importance(self, items: List[Item], questions: List[Dict]):
-        """
-        Initial calculation of feature importance (Gini Impurity & Coverage).
-        This score is static per category and done once at game start.
-        """
         all_attributes = set(q['attribute'] for q in questions)
         
         for attr in all_attributes:
@@ -66,17 +60,14 @@ class QuestionSelector:
                 self.feature_importance[attr] = 0.0
                 continue
                 
-            # Gini Impurity (Measures diversity of values)
             value_counts = defaultdict(int)
             for v in values:
                 value_counts[str(v)] += 1
             total = sum(value_counts.values())
             gini = 1.0 - sum((count/total)**2 for count in value_counts.values())
             
-            # Coverage (Measures how many items have this attribute defined)
             coverage = defined_count / len(items) if items else 0.0
             
-            # Weighted Importance
             importance = (gini * 0.6) + (coverage * 0.4)
             
             self.feature_importance[attr] = importance
@@ -85,9 +76,7 @@ class QuestionSelector:
 
     def select_best_question(self, available_questions: List[Dict], active_items: List[Item], 
                              bayesian_network: BayesianNetwork, game_state_history: List[Tuple[Dict, str]]) -> Optional[Dict]:
-        """
-        Selects the single best question using a blended score model.
-        """
+        
         if len(active_items) <= GAME_CONFIG['min_items_to_guess'] or not active_items:
             return None
         
@@ -96,43 +85,35 @@ class QuestionSelector:
         if not questions_to_score:
             return None
 
-        # Determine current heuristic stage for strategic scoring
         questions_asked = len(game_state_history)
         current_stage = 5
         if questions_asked < 5: current_stage = 0
         elif questions_asked < 12: current_stage = 2
         elif questions_asked < 25: current_stage = 4
         
-        # Score each question
         question_scores = []
         
         for question in questions_to_score:
-            # 1. Information Gain (EIG) - CRITICAL: How well does it split?
             ig_score = self.info_gain_calc.calculate(
                 active_items, 
                 question['attribute'], 
                 question['value']
             ) * 0.45 
             
-            # 2. Strategy Score - High weight for aligning with the current stage
             q_stage = self.get_attribute_stage(question['attribute'])
             strategy_bonus = 0.0
             if q_stage <= current_stage:
-                strategy_bonus = 0.30 # Favor questions in or before the current stage
+                strategy_bonus = 0.30 
             elif q_stage == current_stage + 1:
-                 strategy_bonus = 0.15 # Allow questions for the next stage
+                 strategy_bonus = 0.15 
             strategy_score = strategy_bonus
             
-            # 3. Bayesian Score - Does it target an attribute with a strong belief?
             bn_score = bayesian_network.score_question(question) * 0.15
             
-            # 4. Balance Score - Favor 50/50 splits (most information-rich)
             balance_score = self._score_question_by_balance(active_items, question) * 0.05
             
-            # 5. Feature Importance - Boost based on overall attribute value
             importance_score = self.feature_importance.get(question['attribute'], 0.5) * 0.05
             
-            # Calculate total score
             total_score = ig_score + strategy_score + bn_score + balance_score + importance_score
             
             question_scores.append({
@@ -142,7 +123,6 @@ class QuestionSelector:
                 'balance': balance_score, 'importance': importance_score
             })
         
-        # Sort and return best question
         question_scores.sort(key=lambda x: x['score'], reverse=True)
         
         if not question_scores:
@@ -164,14 +144,14 @@ class QuestionSelector:
         
         filtered_questions = []
         for question in available_questions:
-            # 1. Already asked exact question
+            
             if question['question'] in asked_questions_text:
                 continue
             
             attribute = question['attribute']
             value = question['value']
             
-            # 2. Trivial Split Check: Skip if almost all remaining items have the same value for this attribute.
+            # 1. Trivial Split Check
             unique_values = set()
             for item in active_items:
                 item_value = item.attributes.get(attribute)
@@ -181,22 +161,20 @@ class QuestionSelector:
                     else:
                         unique_values.add(str(item_value))
             
-            # If only one unique value remains among all active items for this attribute
             if len(unique_values) <= 1 and attribute in asked_attributes:
                 continue
                 
-            # 3. Prevent over-asking a general attribute (e.g., 'hasMountains')
-            attribute_count = sum(1 for q, _ in game_state_history if q[0]['attribute'] == attribute)
+            # 2. Prevent over-asking a general attribute
+            # CRITICAL FIX: The loop variable 'q' is the dictionary itself. We don't need q[0].
+            attribute_count = sum(1 for q, _ in game_state_history if q['attribute'] == attribute)
+            
             if attribute_count >= 4 and attribute not in ['famousFor', 'neighbors']:
-                 # Still allow very specific ones, but prune generic ones if abused
                  if self.get_attribute_stage(attribute) < 5:
                      continue
 
-            # 4. Filter out 'no' answers if the set is small.
+            # 3. Filter out 'no' answers for small sets
             if len(active_items) <= 10 and attribute in asked_attributes and self.get_attribute_stage(attribute) <= 1:
-                # If the question targets a broad category already largely filtered by its attribute
                 if attribute in ['continent', 'region'] and question['value'] not in unique_values:
-                    # Skip asking about an empty continent/region
                     continue
             
             filtered_questions.append(question)
@@ -224,7 +202,6 @@ class QuestionSelector:
             return 0.0
         
         ratio = matches / total
-        # Formula: 1 - |0.5 - ratio| * 2. Range [0, 1]. Max at ratio=0.5.
         balance = 1.0 - abs(0.5 - ratio) * 2
         
         return balance
