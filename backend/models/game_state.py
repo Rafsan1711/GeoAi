@@ -50,8 +50,19 @@ class GameState:
         game_state.questions_asked = data.get('questions_asked', 0)
         game_state.asked_question_ids = set(data.get('asked_question_ids', []))
         game_state.current_question = data.get('current_question')
-        # FIX: Ensure answer_history is loaded correctly (list of tuples/lists)
-        game_state.answer_history = [(q, a) for q, a in data.get('answer_history', [])]
+        
+        # FIX: Ensure nested list/tuple structure is flattened for easy consumption.
+        # Firebase returns nested lists, Python unpacks the outer list: [ [q_dict, answer], [q_dict, answer], ... ]
+        # The inner element can be a list or a tuple, so we iterate over the inner elements.
+        restored_history = []
+        for entry in data.get('answer_history', []):
+            if isinstance(entry, list) and len(entry) == 2:
+                # Assuming entry = [question_dict, answer_string]
+                restored_history.append((entry[0], entry[1]))
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                restored_history.append(entry)
+            
+        game_state.answer_history = restored_history
         
         return game_state
 
@@ -91,12 +102,12 @@ class GameState:
             'current_question': self.current_question,
             'items_data': [item.to_dict() for item in self.items],
             'questions': self.questions,
-            'answer_history': self.answer_history
+            # Ensure answer_history is converted to a list of lists/tuples for JSON
+            'answer_history': [list(entry) for entry in self.answer_history] 
         }
     
     def get_answer_statistics(self) -> Dict:
         from collections import Counter
-        # FIX: The answer is the second element in the tuple (q, a)
         answers = [ans for _, ans in self.answer_history] 
         answer_counts = Counter(answers)
         
