@@ -9,15 +9,16 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (must be done before config import)
+# Load environment variables from .env file
 load_dotenv()
 
-# CRITICAL FIX: Use direct relative imports for Flask application context
-from .backend.config import DEPLOYMENT_CONFIG # NOTE: Import from the root package
-from .core.inference_engine import InferenceEngine
-from .utils.data_loader import DataLoader
-from .utils.logger import setup_logger
-from .models.item_model import Item 
+# CRITICAL FIX: Direct, non-relative imports based on Gunicorn's --chdir backend
+# This ensures that 'config', 'core', 'utils', 'models' are treated as top-level modules
+from config import DEPLOYMENT_CONFIG
+from core.inference_engine import InferenceEngine
+from utils.data_loader import DataLoader
+from utils.logger import setup_logger
+from models.item_model import Item 
 
 # Setup logging
 logger = setup_logger('geoai', level=DEPLOYMENT_CONFIG['log_level'])
@@ -37,7 +38,7 @@ def _get_game_state(session_id: str):
     """Utility to retrieve game state or return error."""
     game_state = inference_engine.get_game_state(session_id)
     if not game_state:
-        # NOTE: Game state cleanup in cache happens here, not on prediction.
+        # Note: Game state cleanup in cache is important on failure
         if session_id in inference_engine.active_games:
             del inference_engine.active_games[session_id]
         return None, jsonify({'error': 'Invalid or expired session'}), 400
@@ -68,9 +69,8 @@ def start_game():
         if not category:
             return jsonify({'error': 'Category required'}), 400
         
-        # Load items and questions locally (assuming frontend sends question bank)
         items = data_loader.get_category_data(category)
-        questions = data.get('questions', []) # Frontend must send question bank
+        questions = data.get('questions', []) 
         
         if not items:
             return jsonify({'error': f'No data for category: {category} on backend'}), 400
@@ -106,7 +106,6 @@ def get_next_question():
         game_state, error_response, status = _get_game_state(session_id)
         if error_response: return error_response, status
 
-        # Get next question from the engine
         question = inference_engine.get_next_question(game_state)
         
         active_items = game_state.get_active_items()
@@ -145,7 +144,6 @@ def process_answer():
         if not answer:
             return jsonify({'error': 'Answer required'}), 400
         
-        # Process answer
         result = inference_engine.process_answer(game_state, answer)
         
         return jsonify(result)
@@ -164,10 +162,8 @@ def get_prediction():
         game_state, error_response, status = _get_game_state(session_id)
         if error_response: return error_response, status
         
-        # Get final prediction
         result = inference_engine.get_final_prediction(game_state)
         
-        # Clean up session in Firebase
         inference_engine.firebase_service.delete_game_state(session_id)
         
         return jsonify(result)
@@ -180,24 +176,21 @@ def get_prediction():
 def submit_feedback():
     """
     Handle user feedback after a wrong guess, allowing the AI to learn
-    and the user to continue playing (if max questions not reached).
+    and the user to continue playing.
     """
     try:
         data = request.json
         session_id = data.get('session_id')
-        actual_answer_name = data.get('actual_answer') # User selects the correct one
+        actual_answer_name = data.get('actual_answer')
         
         game_state, error_response, status = _get_game_state(session_id)
         if error_response: return error_response, status
 
         top_item = game_state.get_top_prediction()
-        was_correct = top_item.name.lower() == actual_answer_name.lower() if top_item else False
         
-        # Find the actual item in the possible items list
         actual_item = next((item for item in game_state.items if item.name.lower() == actual_answer_name.lower()), None)
         
         if actual_item:
-            # Log failure for learning
             inference_engine.firebase_service.log_game_result(
                 game_state, 
                 top_item.name if top_item else "None", 
@@ -207,22 +200,19 @@ def submit_feedback():
                 actual_answer=actual_answer_name
             )
         
-            # If the actual item exists, boost its probability for the continuation round
             for item in game_state.items:
                 if item.id == actual_item.id:
-                    item.probability *= 10.0 # Aggressive boost
+                    item.probability *= 10.0 
                     item.eliminated = False
                 else:
-                    item.probability *= 0.1 # Soft penalize others
+                    item.probability *= 0.1 
                     
             inference_engine.probability_manager.normalize_probabilities(game_state.items)
             inference_engine.probability_manager.soft_filter(game_state.items)
 
-        # Check if max questions reached or just return success to continue
-        if game_state.questions_asked >= DEPLOYMENT_CONFIG['max_questions']:
+        if game_state.questions_asked >= GAME_CONFIG['max_questions']:
             return jsonify({'message': 'Max questions reached, forcing final prediction.', 'questions_asked': game_state.questions_asked}), 400
 
-        # Save the game state after boosting
         inference_engine.firebase_service.save_game_state(game_state)
         
         return jsonify({
