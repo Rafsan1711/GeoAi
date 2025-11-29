@@ -12,7 +12,9 @@ import os
 from datetime import datetime
 
 # Local Imports
-from backend.config import FIREBASE_CONFIG
+# Assuming backend/config.py is at the root of python modules, 
+# or adjust path if necessary (e.g. from ..config import ...)
+from backend.config import FIREBASE_CONFIG 
 from models.game_state import GameState # Required for type hinting/dict conversion
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,10 @@ class FirebaseService:
                 
                 # Check for a single env var if file doesn't exist (better for security)
                 elif os.getenv('FIREBASE_SA_KEY_JSON'):
-                    service_account_json = json.loads(os.getenv('FIREBASE_SA_KEY_JSON'))
+                    # Load from environment variable (base64 decoded JSON string)
+                    import base64
+                    json_data = base64.b64decode(os.getenv('FIREBASE_SA_KEY_JSON')).decode('utf-8')
+                    service_account_json = json.loads(json_data)
                     cred = credentials.Certificate(service_account_json)
                 
                 else:
@@ -69,10 +74,13 @@ class FirebaseService:
             return
         
         try:
+            # GameState.to_dict() is complex, so we limit the update path 
+            # for better performance and smaller payload.
             state_dict = game_state.to_dict()
-            ref = self._db_client.reference(f'games/{game_state.session_id}/state')
-            ref.set(state_dict)
-            ref.parent.child('last_updated').set(datetime.now().isoformat())
+            
+            ref = self._db_client.reference(f'games/{game_state.session_id}')
+            # Store the entire state under the session ID
+            ref.set(state_dict) 
             
         except Exception as e:
             logger.error(f"Error saving game state for {game_state.session_id}: {e}")
@@ -83,7 +91,7 @@ class FirebaseService:
             return None
             
         try:
-            ref = self._db_client.reference(f'games/{session_id}/state')
+            ref = self._db_client.reference(f'games/{session_id}')
             state_dict = ref.get()
             
             if state_dict and isinstance(state_dict, dict):
@@ -93,6 +101,18 @@ class FirebaseService:
             logger.error(f"Error loading game state for {session_id}: {e}")
             
         return None
+        
+    def delete_game_state(self, session_id: str):
+        """Delete game state after game ends or expires."""
+        if not self._db_client:
+            return
+        
+        try:
+            ref = self._db_client.reference(f'games/{session_id}')
+            ref.delete()
+            logger.info(f"Deleted game state for session: {session_id}")
+        except Exception as e:
+            logger.error(f"Error deleting game state for {session_id}: {e}")
 
     # --- ANALYTICS & LEARNING (Replaces MongoDB/Supabase) ---
 
@@ -110,14 +130,14 @@ class FirebaseService:
                 'actual_answer': actual_answer,
                 'was_correct': was_correct,
                 'confidence': round(confidence, 1),
-                'failure_reason': failure_reason, # e.g., "premature_guess", "wrong_branch", "correct"
+                'failure_reason': failure_reason,
                 'duration_seconds': game_state.get_game_duration(),
                 'answer_history_summary': game_state.get_answer_statistics(),
                 'timestamp': datetime.now().isoformat()
             }
             
             ref = self._db_client.reference(f'analytics/game_results')
-            ref.push(result_data) # Use push() for unique log entries
+            ref.push(result_data)
             
         except Exception as e:
             logger.error(f"Error logging game result for {game_state.session_id}: {e}")
@@ -125,24 +145,25 @@ class FirebaseService:
     def update_question_effectiveness(self, question: Dict, information_gain: float, was_effective: bool):
         """
         Increment effectiveness metrics for a question to train the model.
-        (This will be a simple counter for free tier)
+        (This is simplified for Firebase RTDB)
         """
         if not self._db_client:
             return
             
         attr = question['attribute']
-        val = str(question['value'])
+        # Sanitize value for Firebase path
+        val_key = str(question['value']).replace('.', '_').replace('#', '_').replace('$', '_').replace('[', '_').replace(']', '_')
         
         try:
-            ref = self._db_client.reference(f'learning/questions/{question["category"]}/{attr}/{val}')
+            ref = self._db_client.reference(f'learning/questions/{question["category"]}/{attr}/{val_key}')
             
-            # Use transaction to safely update counters
             def transaction_handler(current_data):
                 if current_data is None:
                     current_data = {
                         'times_asked': 0,
                         'total_ig': 0.0,
-                        'effective_count': 0
+                        'effective_count': 0,
+                        'question_text': question['question']
                     }
                 
                 current_data['times_asked'] += 1
@@ -158,4 +179,6 @@ class FirebaseService:
             ref.transaction(transaction_handler)
             
         except Exception as e:
-            logger.error(f"Error updating question effectiveness for {attr}/{val}: {e}")
+            logger.error(f"Error updating question effectiveness for {attr}/{val_key}: {e}")
+            
+    # --- END OF FIREBASE SERVICE ---
