@@ -32,7 +32,7 @@ class InferenceEngine:
         self.confidence_calculator = ConfidenceCalculator()
         self.information_gain = InformationGain()
         self.bayesian_network = BayesianNetwork()
-        self.firebase_service = FirebaseService() # Firebase integration
+        self.firebase_service = FirebaseService()
         
         self.active_games: Dict[str, GameState] = {}
         
@@ -175,8 +175,9 @@ class InferenceEngine:
             )
             alternatives = [item.to_dict() for item in sorted_items[1:4]]
             
+            # 1. Log result and update stats
             self.firebase_service.log_game_result(game_state, top_item.name, confidence, False, "Final Guess")
-            self._update_session_stats(confidence >= GAME_CONFIG['confidence_threshold_stage_3'])
+            self._update_session_stats(game_state, confidence >= GAME_CONFIG['confidence_threshold_stage_3']) # FIX: Pass game_state
         else:
             alternatives = []
 
@@ -210,8 +211,8 @@ class InferenceEngine:
             game_state.questions_asked
         )
 
-    def _update_session_stats(self, success: bool):
-        """Update local, temporary session statistics (not persisted)"""
+    def _update_session_stats(self, game_state: GameState, success: bool):
+        """Update local, temporary session statistics (now correctly taking game_state)."""
         self.session_stats['games_played'] += 1
         if success:
             self.session_stats['successful_guesses'] += 1
@@ -219,8 +220,8 @@ class InferenceEngine:
         games = self.session_stats['games_played']
         prev_avg = self.session_stats['average_questions']
         
-        # Guard against key error if game session is already deleted from active_games (which it is)
-        current_qs = games.questions_asked if games > 0 else 0 
+        # FIX: Correctly access questions_asked from the passed game_state object
+        current_qs = game_state.questions_asked 
         
         new_avg = ((prev_avg * (games - 1)) + current_qs) / games
         self.session_stats['average_questions'] = new_avg
