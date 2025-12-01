@@ -31,7 +31,7 @@
 
         { "question": "Is English the primary language?", "attribute": "language", "value": "english", "weight": 0.75, "category": "country" },
         { "question": "Is Spanish the primary language?", "attribute": "language", "value": "spanish", "weight": 0.8, "category": "country" },
-        { "question": "Is French the primary language?", "attribute": "language", "value": "french", "weight": 0.85, "category": "country" },
+        { "question": "Is French the primary language?", "attribute": "language", "value": "french", "weight": 0.95, "category": "country" },
         { "question": "Is Arabic the primary language?", "attribute": "language", "value": "arabic", "weight": 0.8, "category": "country" },
         { "question": "Is Chinese/Mandarin the primary language?", "attribute": "language", "value": "chinese", "weight": 0.9, "category": "country" },
         { "question": "Is Portuguese the primary language?", "attribute": "language", "value": "portuguese", "weight": 0.9, "category": "country" },
@@ -41,14 +41,20 @@
         { "question": "Is it famous for football/soccer?", "attribute": "famousFor", "value": "football", "weight": 0.85, "category": "country" },
         { "question": "Is it famous for technology?", "attribute": "famousFor", "value": "technology", "weight": 0.85, "category": "country" },
         { "question": "Is it famous for Bollywood?", "attribute": "famousFor", "value": "bollywood", "weight": 0.98, "category": "country" },
+        { "question": "Is it famous for the Eiffel Tower?", "attribute": "famousFor", "value": "eiffel tower", "weight": 0.99, "category": "country" },
         { "question": "Is it famous for oil/petroleum?", "attribute": "famousFor", "value": "oil", "weight": 0.9, "category": "country" },
         { "question": "Is it famous for pyramids?", "attribute": "famousFor", "value": "pyramids", "weight": 0.98, "category": "country" },
-        { "question": "Is it famous for wine?", "attribute": "famousFor", "value": "wine", "weight": 0.9, "category": "country" },
+        { "question": "Is it famous for wine?", "attribute": "famousFor", "value": "wine", "weight": 0.95, "category": "country" },
+        
         { "question": "Do they drive on the left side of the road?", "attribute": "driveSide", "value": "left", "weight": 0.75, "category": "country" },
+        
         { "question": "Does it border China?", "attribute": "neighbors", "value": "china", "weight": 0.85, "category": "country" },
         { "question": "Does it border the USA?", "attribute": "neighbors", "value": "usa", "weight": 0.9, "category": "country" },
-        { "question": "Does it export oil/petroleum?", "attribute": "exports", "value": "oil", "weight": 0.85, "category": "country" },
-        { "question": "Does it export coffee?", "attribute": "exports", "value": "coffee", "weight": 0.9, "category": "country" }
+        { "question": "Does it border Germany?", "attribute": "neighbors", "value": "germany", "weight": 0.9, "category": "country" },
+        { "question": "Does it export cars/vehicles?", "attribute": "exports", "value": "cars", "weight": 0.9, "category": "country" },
+        { "question": "Does it export coffee?", "attribute": "exports", "value": "coffee", "weight": 0.9, "category": "country" },
+        
+        { "question": "Is it a Monarchy (King/Queen)?", "attribute": "government", "value": "monarchy", "weight": 0.85, "category": "country" }
     ],
     "city": [
         { "question": "Is it a capital city?", "attribute": "isCapital", "value": true, "weight": 0.85, "category": "city" },
