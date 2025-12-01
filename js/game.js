@@ -37,7 +37,6 @@ class Game {
             if (!this.state.usingBackend) {
                  document.getElementById('backendStatus').textContent = "❌ Backend Offline. Ultra Mode Disabled.";
                  document.getElementById('backendStatus').style.color = CONFIG.COLORS.ERROR;
-                 // Allow local operation for UI demonstration if needed, but warn heavily
                  console.error("Backend API required for Ultra Mode is unavailable. Game will likely fail.");
             } else {
                  document.getElementById('backendStatus').textContent = "✅ Ultra Mode Ready (Backend Active)";
@@ -73,17 +72,14 @@ class Game {
         document.getElementById('categoryCountPlace').textContent = `${apiHandler.getData('place').length}+ Items`;
     }
 
-    // FIX: Re-adding missing functions for UI/UX
     showEngineScreen() {
         this.hideAllScreens();
         document.getElementById('engineScreen').classList.add('active');
     }
 
-    // FIX: Re-adding missing functions for UI/UX
     closeEngineScreen() {
         this.showWelcomeScreen();
     }
-    // END FIX
 
     showThinkingScreen(category) {
         this.hideAllScreens();
@@ -313,7 +309,6 @@ class Game {
         const listContainer = document.getElementById('actualAnswerList');
         listContainer.innerHTML = ''; 
         
-        // Use client-side data for displaying name options
         const names = items.map(i => i.name).sort(); 
         
         names.slice(0, 50).forEach(name => { 
@@ -330,7 +325,8 @@ class Game {
         this.showThinkingScreen(this.state.category);
         
         try {
-            const data = await apiHandler.submitCorrection(this.state.sessionId, actualAnswerName);
+            // FIX: Change submitCorrection to submitFeedback as defined in api_enhanced.js
+            const data = await apiHandler.submitFeedback(this.state.sessionId, actualAnswerName); 
             
             this.state.questionNumber = data.questions_asked; 
             
@@ -398,8 +394,7 @@ class Game {
 
     resetGame() {
         if (this.state.sessionId) {
-            // Attempt to delete on backend (APIHandler does not have deleteSession method, so skip for now)
-            // apiHandler.deleteGameSession(this.state.sessionId); 
+            // No cleanup needed, session is handled by prediction/expiration
         }
         this.state = {
             category: null, currentQuestion: null, questionNumber: 0, maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
