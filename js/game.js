@@ -1,4 +1,4 @@
-// game_enhanced.js - Ultra Game Manager with Backend Integration
+// game.js - Ultra Game Manager with Backend Integration
 
 class Game {
     constructor() {
@@ -12,7 +12,7 @@ class Game {
             answers: [],
             questions: null,
             usingBackend: false,
-            sessionId: null, // Session ID is NOT nullified until game ends
+            sessionId: null, 
             maxConfidence: 0
         };
         
@@ -330,8 +330,13 @@ class Game {
                  this.showQuestionScreen();
                  return;
             }
-
-            const data = await apiHandler.submitFeedback(this.state.sessionId, actualAnswerName); 
+            
+            const sessionToSubmit = this.state.sessionId; // Preserve session ID for this call
+            
+            // Call submitFeedback with the active session ID
+            const data = await apiHandler.submitFeedback(sessionToSubmit, actualAnswerName); 
+            
+            // Session ID is not nullified on this call, only on reset or successful predict
             
             this.state.questionNumber = data.questions_asked; 
             
@@ -408,4 +413,3 @@ class Game {
 }
 
 const game = new Game();
---- END OF FILE game.js ---
