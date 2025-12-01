@@ -32,11 +32,10 @@ class FirebaseService:
             if not cls._instance._base_url.endswith('/'):
                  cls._instance._base_url += '/'
                  
-            # CRITICAL FIX: Check if the default URL is still being used
             if 'default-rtdb.firebaseio.com' in cls._instance._base_url:
                 logger.error(
                     "❌ CRITICAL FIREBASE URL ERROR: Using default URL. "
-                    "Ensure FIREBASE_DATABASE_URL is set in Render Environment Variables."
+                    "Data Persistence will FAIL with 404. Check FIREBASE_DATABASE_URL EV."
                 )
             
             logger.info(f"✅ Firebase REST Service initialized: {cls._instance._base_url}")
@@ -45,9 +44,9 @@ class FirebaseService:
 
     def _send_request(self, method: str, path: str, data: Optional[Dict] = None) -> Optional[Dict]:
         """Generic method to send a request to Firebase RTDB."""
-        # Only attempt call if URL is correct (heuristic check)
+        
+        # Heuristic check for unconfigured URL
         if 'default-rtdb.firebaseio.com' in self._base_url:
-            logger.error(f"❌ Aborted Firebase call: {path}. Default URL is active.")
             return None
             
         url = self._base_url + path + ".json"
@@ -56,7 +55,6 @@ class FirebaseService:
             params['auth'] = self._auth
             
         try:
-            # Set shorter timeout for high-frequency calls
             timeout = 3 if method in ['PUT', 'POST'] else 5 
             
             if method == 'PUT':
@@ -70,12 +68,16 @@ class FirebaseService:
             else:
                 return None
             
+            # Log 401/404 errors explicitly for debugging
+            if response.status_code in [401, 404]:
+                logger.error(f"❌ Firebase REST Error ({method} {path}): {response.status_code} {response.reason} for url: {url}")
+            
             response.raise_for_status()
             return response.json()
         
         except requests.exceptions.RequestException as e:
-            # Log the error but don't crash the main app flow
-            logger.error(f"❌ Firebase REST Error ({method} {path}): {response.status_code if 'response' in locals() else 'No Status'} {e}")
+            # Catch all network/protocol errors
+            logger.error(f"❌ Firebase REST Error ({method} {path}): {e}")
             return None
             
     # --- REST OF THE FUNCTIONS (UNCHANGED) ---
