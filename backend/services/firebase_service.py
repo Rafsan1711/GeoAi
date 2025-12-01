@@ -12,7 +12,6 @@ from datetime import datetime
 
 # Local Imports
 from backend.config import FIREBASE_CONFIG
-from models.game_state import GameState 
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,14 @@ class FirebaseService:
         """Implement Singleton pattern."""
         if cls._instance is None:
             cls._instance = super(FirebaseService, cls).__new__(cls)
-            cls._instance._base_url = FIREBASE_CONFIG['databaseURL']
+            
+            # CRITICAL FIX: Direct URL injection for guaranteed testing.
+            # RENDER EV should be set, but this line ensures the correct URL is used.
+            env_url = os.getenv('FIREBASE_DATABASE_URL', "https://default-rtdb.firebaseio.com")
+            
+            # Use the URL you provided
+            cls._instance._base_url = "https://rating-system-c7adc-default-rtdb.asia-southeast1.firebasedatabase.app/" if 'default-rtdb.firebaseio.com' in env_url else env_url
+            
             cls._instance._auth = FIREBASE_CONFIG['apiKey']
             cls._instance._session = requests.Session() 
             
@@ -34,18 +40,17 @@ class FirebaseService:
                  
             if 'default-rtdb.firebaseio.com' in cls._instance._base_url:
                 logger.error(
-                    "❌ CRITICAL FIREBASE URL ERROR: Using default URL. "
-                    "Data Persistence will FAIL with 404. Check FIREBASE_DATABASE_URL EV."
+                    "❌ CRITICAL FIREBASE URL ERROR: Persistence will FAIL. "
+                    "You MUST set FIREBASE_DATABASE_URL to your actual URL in Render EV."
                 )
             
-            logger.info(f"✅ Firebase REST Service initialized: {cls._instance._base_url}")
+            logger.info(f"✅ Firebase REST Service initialized with URL: {cls._instance._base_url}")
             
         return cls._instance
 
     def _send_request(self, method: str, path: str, data: Optional[Dict] = None) -> Optional[Dict]:
         """Generic method to send a request to Firebase RTDB."""
         
-        # Heuristic check for unconfigured URL
         if 'default-rtdb.firebaseio.com' in self._base_url:
             return None
             
@@ -68,33 +73,31 @@ class FirebaseService:
             else:
                 return None
             
-            # Log 401/404 errors explicitly for debugging
             if response.status_code in [401, 404]:
-                logger.error(f"❌ Firebase REST Error ({method} {path}): {response.status_code} {response.reason} for url: {url}")
+                logger.error(f"❌ Firebase REST Error ({method} {path}): {response.status_code} {response.reason}. Check Rules or URL.")
             
             response.raise_for_status()
             return response.json()
         
         except requests.exceptions.RequestException as e:
-            # Catch all network/protocol errors
             logger.error(f"❌ Firebase REST Error ({method} {path}): {e}")
             return None
             
     # --- REST OF THE FUNCTIONS (UNCHANGED) ---
-    def save_game_state(self, game_state: GameState):
+    def save_game_state(self, game_state):
         try:
             state_dict = game_state.to_dict()
             self._send_request('PUT', f'games/{game_state.session_id}', state_dict)
         except Exception:
             pass
 
-    def load_game_state(self, session_id: str) -> Optional[Dict]:
+    def load_game_state(self, session_id):
         return self._send_request('GET', f'games/{session_id}')
         
-    def delete_game_state(self, session_id: str):
+    def delete_game_state(self, session_id):
         self._send_request('DELETE', f'games/{session_id}')
 
-    def log_game_result(self, game_state: GameState, final_guess: str, confidence: float, was_correct: bool, failure_reason: str, actual_answer: Optional[str] = None):
+    def log_game_result(self, game_state, final_guess, confidence, was_correct, failure_reason, actual_answer=None):
         result_data = {
             'session_id': game_state.session_id,
             'category': game_state.category,
@@ -110,7 +113,7 @@ class FirebaseService:
         }
         self._send_request('POST', 'analytics/game_results', result_data)
             
-    def update_question_effectiveness(self, question: Dict, information_gain: float, was_effective: bool):
+    def update_question_effectiveness(self, question, information_gain, was_effective):
         attr = question['attribute']
         val_key = str(question['value']).replace('.', '_').replace('#', '_').replace('$', '_').replace('[', '_').replace(']', '_')
         category = question['category']
