@@ -8,16 +8,16 @@ class Game {
             questionNumber: 0,
             maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
             askedQuestions: [],
-            possibleItems: [], // Used for initial loading and UI display, backend handles logic
+            possibleItems: [], 
             answers: [],
-            questions: null, // Full question bank for the category
+            questions: null,
             usingBackend: false,
-            sessionId: null,
+            sessionId: null, // Session ID is NOT nullified until game ends
             maxConfidence: 0
         };
         
         this.dataLoaded = false;
-        this.questionBank = {}; // Full question bank loaded from data files
+        this.questionBank = {}; 
         this.thinkingDuration = CONFIG.GAME.THINKING_DURATION;
     }
 
@@ -298,6 +298,7 @@ class Game {
         animationController.fadeOut(targetElement, 300);
         
         if (isCorrect) {
+            this.state.sessionId = null; 
             this.showFinalResult(result);
         } else {
             this.showFeedbackModal(result.prediction.name);
@@ -325,7 +326,11 @@ class Game {
         this.showThinkingScreen(this.state.category);
         
         try {
-            // FIX: Change submitCorrection to submitFeedback as defined in api_enhanced.js
+            if (!actualAnswerName) { 
+                 this.showQuestionScreen();
+                 return;
+            }
+
             const data = await apiHandler.submitFeedback(this.state.sessionId, actualAnswerName); 
             
             this.state.questionNumber = data.questions_asked; 
@@ -342,7 +347,7 @@ class Game {
             }
         } catch (e) {
              console.error("Correction submission failed:", e);
-             alert("Error processing correction. Please start a new game.");
+             alert(`Error processing correction: ${e.message}. Please start a new game.`);
              this.resetGame();
         }
     }
@@ -393,9 +398,7 @@ class Game {
     }
 
     resetGame() {
-        if (this.state.sessionId) {
-            // No cleanup needed, session is handled by prediction/expiration
-        }
+        this.state.sessionId = null; 
         this.state = {
             category: null, currentQuestion: null, questionNumber: 0, maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
             askedQuestions: [], possibleItems: [], answers: [], questions: null, usingBackend: false, sessionId: null, maxConfidence: 0
@@ -405,3 +408,4 @@ class Game {
 }
 
 const game = new Game();
+--- END OF FILE game.js ---
