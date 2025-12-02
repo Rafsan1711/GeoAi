@@ -5,6 +5,10 @@ Game State - Manages current game session state
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import logging
+import uuid
+
+# Local Imports
+from .item_model import Item
 
 logger = logging.getLogger(__name__)
 
@@ -14,141 +18,97 @@ class GameState:
     Represents the state of a single game session
     """
     
-    def __init__(self, category: str, items: List, questions: List[Dict]):
-        # Game metadata
+    def __init__(self, category: str, items: List[Item], questions: List[Dict], session_id: Optional[str] = None):
         self.category = category
         self.start_time = datetime.now()
-        
-        # Items and questions
-        self.items = items  # List of Item objects
-        self.questions = questions  # Available questions
-        
-        # Game progress
+        self.items = items
+        self.questions = questions
         self.questions_asked = 0
         self.asked_question_ids = set()
-        self.current_question = None
+        self.current_question: Optional[Dict] = None
+        self.answer_history: List[Tuple[Dict, str]] = []
+        self.session_id = session_id if session_id else str(uuid.uuid4())
         
-        # Answer history
-        self.answer_history = []  # List of (question, answer) tuples
-        
-        # Session metadata
-        self.session_id = self._generate_session_id()
-        
-        logger.info(f"Game state created: {category} with {len(items)} items")
+        logger.info(f"Game state created: {self.session_id} - {category} with {len(items)} items")
     
-    def _generate_session_id(self) -> str:
-        """Generate unique session ID"""
-        return f"{self.category}_{self.start_time.timestamp()}"
-    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'GameState':
+        """Create GameState from dictionary (for loading from Firebase)."""
+        
+        item_objects = [Item.from_dict(item_data) for item_data in data.get('items_data', [])]
+        
+        game_state = cls(
+            session_id=data['session_id'],
+            category=data['category'],
+            items=item_objects,
+            questions=data.get('questions', [])
+        )
+        
+        start_time_str = data.get('start_time')
+        game_state.start_time = datetime.fromisoformat(start_time_str) if start_time_str else datetime.now()
+        
+        game_state.questions_asked = data.get('questions_asked', 0)
+        game_state.asked_question_ids = set(data.get('asked_question_ids', []))
+        game_state.current_question = data.get('current_question')
+        
+        # FIX: Ensure nested list/tuple structure is flattened for easy consumption.
+        # Firebase returns nested lists, Python unpacks the outer list: [ [q_dict, answer], [q_dict, answer], ... ]
+        # The inner element can be a list or a tuple, so we iterate over the inner elements.
+        restored_history = []
+        for entry in data.get('answer_history', []):
+            if isinstance(entry, list) and len(entry) == 2:
+                # Assuming entry = [question_dict, answer_string]
+                restored_history.append((entry[0], entry[1]))
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                restored_history.append(entry)
+            
+        game_state.answer_history = restored_history
+        
+        return game_state
+
     def mark_question_asked(self, question: Dict):
-        """
-        Mark a question as asked
-        
-        Args:
-            question: Question that was asked
-        """
         self.current_question = question
         self.questions_asked += 1
         self.asked_question_ids.add(question['question'])
-        
-        logger.debug(f"Question {self.questions_asked} marked: {question['question']}")
     
     def record_answer(self, answer: str):
-        """
-        Record user's answer
-        
-        Args:
-            answer: User's answer
-        """
         if self.current_question:
             self.answer_history.append((self.current_question, answer))
-            logger.debug(f"Answer recorded: {answer}")
     
-    def get_active_items(self) -> List:
-        """
-        Get items that are still active (not eliminated)
-        
-        Returns:
-            List: Active Item objects
-        """
+    def get_active_items(self) -> List[Item]:
         return [item for item in self.items if not item.eliminated]
     
     def get_available_questions(self) -> List[Dict]:
-        """
-        Get questions that haven't been asked yet
-        
-        Returns:
-            List: Available questions
-        """
         return [
             q for q in self.questions 
             if q['question'] not in self.asked_question_ids
         ]
     
-    def get_top_prediction(self):
-        """
-        Get the item with highest probability
-        
-        Returns:
-            Item: Top prediction or None
-        """
+    def get_top_prediction(self) -> Optional[Item]:
         active_items = self.get_active_items()
-        
-        if not active_items:
-            return None
-        
+        if not active_items: return None
         return max(active_items, key=lambda x: x.probability)
     
-    def get_progress_percentage(self, max_questions: int = 15) -> float:
-        """
-        Get game progress as percentage
-        
-        Args:
-            max_questions: Maximum questions
-            
-        Returns:
-            float: Progress percentage (0-100)
-        """
-        return (self.questions_asked / max_questions) * 100
-    
     def get_game_duration(self) -> float:
-        """
-        Get game duration in seconds
-        
-        Returns:
-            float: Duration in seconds
-        """
         return (datetime.now() - self.start_time).total_seconds()
     
     def to_dict(self) -> Dict:
-        """
-        Convert game state to dictionary
-        
-        Returns:
-            Dict: Game state data
-        """
-        active_items = self.get_active_items()
-        
         return {
             'session_id': self.session_id,
             'category': self.category,
+            'start_time': self.start_time.isoformat(),
             'questions_asked': self.questions_asked,
-            'total_items': len(self.items),
-            'active_items': len(active_items),
-            'duration_seconds': self.get_game_duration(),
-            'answer_history_length': len(self.answer_history)
+            'asked_question_ids': list(self.asked_question_ids),
+            'current_question': self.current_question,
+            'items_data': [item.to_dict() for item in self.items],
+            'questions': self.questions,
+            # Ensure answer_history is converted to a list of lists/tuples for JSON
+            'answer_history': [list(entry) for entry in self.answer_history] 
         }
     
     def get_answer_statistics(self) -> Dict:
-        """
-        Get statistics about answers given
-        
-        Returns:
-            Dict: Answer statistics
-        """
         from collections import Counter
-        
-        answers = [ans for _, ans in self.answer_history]
+        answers = [ans for _, ans in self.answer_history] 
         answer_counts = Counter(answers)
         
         return {
@@ -160,22 +120,9 @@ class GameState:
             'dontknow_count': answer_counts.get('dontknow', 0)
         }
     
-    def get_attribute_usage(self) -> Dict[str, int]:
-        """
-        Get how many times each attribute was asked
-        
-        Returns:
-            Dict: attribute -> count
-        """
-        from collections import Counter
-        
-        attributes = [q['attribute'] for q, _ in self.answer_history]
-        return dict(Counter(attributes))
-    
     def __repr__(self) -> str:
-        """String representation"""
         return (
-            f"GameState(category={self.category}, "
+            f"GameState(session={self.session_id}, category={self.category}, "
             f"questions={self.questions_asked}, "
             f"active_items={len(self.get_active_items())})"
         )

@@ -1,55 +1,101 @@
-// api.js - Optimized API Handler for Ultra Accuracy Mode
+// api_enhanced.js - Enhanced API Handler for Backend Communication
 
 class APIHandler {
     constructor() {
         this.baseURL = CONFIG.API.BASE_URL;
-        this.timeout = CONFIG.API.TIMEOUT;
-        this.cache = new Map();
         this.dataCache = {
-            countries: null,
-            cities: null,
-            places: null
+            country: null,
+            city: null,
+            place: null
         };
         this.backendHealthy = false;
         this.sessionId = null;
+        this.endpoints = {
+            START_GAME: '/api/start-game',
+            GET_QUESTION: '/api/question',
+            PROCESS_ANSWER: '/api/answer',
+            PREDICT: '/api/predict',
+            FEEDBACK: '/api/feedback',
+            HEALTH: '/health',
+            STATS: '/api/stats'
+        };
+    }
+
+    /**
+     * Generic REST API Caller
+     */
+    async _apiCall(endpoint, method = 'GET', data = null, timeout = CONFIG.API.TIMEOUT) {
+        const url = this.baseURL + endpoint;
+        const config = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            signal: AbortSignal.timeout(timeout)
+        };
+
+        if (data) {
+            config.body = JSON.stringify(data);
+        }
+
+        try {
+            if (CONFIG.DEBUG.LOG_API_CALLS) {
+                console.log(`📡 API Call: ${method} ${url}`, data);
+            }
+            const response = await fetch(url, config);
+
+            if (!response.ok) {
+                let errorData = {};
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    // Handle cases where response is not JSON
+                    errorData.error = response.statusText || `HTTP Error ${response.status}`;
+                }
+                
+                // CRITICAL FIX: Log full error data from backend
+                console.error(`❌ API Error Response (${response.status} ${url}):`, errorData);
+                throw new Error(errorData.error || `HTTP Error ${response.status}`);
+            }
+
+            return response.json();
+        } catch (error) {
+            if (error.name === 'TimeoutError') {
+                console.error(`❌ API Timeout: ${url}`, error);
+            } else {
+                // Generic error should already be logged by the inner logic
+            }
+            throw error;
+        }
     }
 
     /**
      * Check if backend is healthy
      */
     async checkBackendHealth() {
-        if (!CONFIG.FEATURES.USE_PYTHON_API) {
+        try {
+            const data = await this._apiCall(this.endpoints.HEALTH, 'GET', null, 5000);
+            this.backendHealthy = data?.status === 'healthy';
+            if (this.backendHealthy) {
+                console.log('✅ Backend is healthy:', data);
+            }
+            return this.backendHealthy;
+        } catch (error) {
             this.backendHealthy = false;
+            console.warn('💻 Using local data mode (Backend API not available or failed health check).');
             return false;
         }
-
-        try {
-            const response = await fetch(`${this.baseURL}/health`, {
-                method: 'GET',
-                signal: AbortSignal.timeout(5000)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.backendHealthy = true;
-                console.log('✅ Backend is healthy:', data);
-                return true;
-            }
-        } catch (error) {
-            console.log('💻 Using local algorithm (backend not available)');
-            this.backendHealthy = false;
-        }
-        return false;
     }
 
     /**
-     * Load JSON data from file
+     * Load JSON data from file (Client-side Data Loading is MANDATORY)
      */
     async loadJSON(path) {
+        // NOTE: Path here must be relative to the Frontend's URL (https://geoai-p43j.onrender.com/render)
         try {
             const response = await fetch(path);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status} for path: ${path}`);
             }
             const data = await response.json();
             return data;
@@ -60,41 +106,30 @@ class APIHandler {
     }
 
     /**
-     * Load all game data
+     * Load all game data (must load all on client-side for questions/UI)
      */
     async loadAllData() {
-        try {
-            const [countries, cities, places] = await Promise.all([
-                this.loadJSON(CONFIG.DATA.PATHS.COUNTRIES),
-                this.loadJSON(CONFIG.DATA.PATHS.CITIES),
-                this.loadJSON(CONFIG.DATA.PATHS.PLACES)
-            ]);
+        const [countries, cities, places, questions] = await Promise.all([
+            this.loadJSON(CONFIG.DATA.PATHS.COUNTRIES),
+            this.loadJSON(CONFIG.DATA.PATHS.CITIES),
+            this.loadJSON(CONFIG.DATA.PATHS.PLACES),
+            this.loadJSON(CONFIG.DATA.PATHS.QUESTIONS) 
+        ]);
 
-            this.dataCache = {
-                country: countries,
-                city: cities,
-                place: places
-            };
+        this.dataCache = {
+            country: countries,
+            city: cities,
+            place: places,
+            questions: questions
+        };
 
-            console.log('📊 Data loaded successfully:');
-            console.log(`  🌍 Countries: ${countries.length}`);
-            console.log(`  🏙️ Cities: ${cities.length}`);
-            console.log(`  🏛️ Places: ${places.length}`);
+        console.log(`📊 Data loaded: Countries=${countries.length}, Cities=${cities.length}, Places=${places.length}`);
 
-            // Check backend health
-            if (CONFIG.FEATURES.USE_PYTHON_API) {
-                await this.checkBackendHealth();
-            }
-
-            return this.dataCache;
-        } catch (error) {
-            console.error('❌ Error loading game data:', error);
-            return {
-                country: [],
-                city: [],
-                place: []
-            };
+        if (countries.length > 0) {
+            await this.checkBackendHealth();
         }
+        
+        return this.dataCache;
     }
 
     /**
@@ -103,114 +138,58 @@ class APIHandler {
     getData(category) {
         return this.dataCache[category] || [];
     }
-
+    
     /**
-     * Get next question (Local Algorithm Priority)
+     * Get question bank
      */
-    async getNextQuestion(category, askedQuestions, possibleItems) {
-        // Always use local algorithm for ultra accuracy
-        if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
-            return localAlgorithm.selectBestQuestion(
-                category,
-                askedQuestions,
-                possibleItems
-            );
+    getQuestionBank() {
+        return this.dataCache.questions || {};
+    }
+
+    // --- Backend-dependent calls ---
+
+    async startGame(category, questions) {
+        if (!this.backendHealthy) {
+            throw new Error("Backend is offline. Cannot start game.");
         }
-
-        return null;
+        const data = await this._apiCall(this.endpoints.START_GAME, 'POST', {
+            category: category,
+            questions: questions 
+        });
+        this.sessionId = data.session_id;
+        return data;
     }
 
-    /**
-     * Filter items (Local Algorithm)
-     */
-    async filterItems(possibleItems, question, answer) {
-        // Use local algorithm
-        if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
-            return localAlgorithm.filterItems(
-                possibleItems,
-                question,
-                answer
-            );
-        }
-
-        return possibleItems;
+    async getNextQuestion(sessionId) {
+        return this._apiCall(this.endpoints.GET_QUESTION, 'POST', {
+            session_id: sessionId
+        });
     }
 
-    /**
-     * Get prediction (Local Algorithm)
-     */
-    async getPrediction(possibleItems, questionsAsked) {
-        // Use local algorithm
-        if (CONFIG.FEATURES.USE_LOCAL_ALGORITHM) {
-            return {
-                prediction: localAlgorithm.getBestGuess(possibleItems),
-                confidence: localAlgorithm.calculateConfidence(possibleItems),
-                alternatives: possibleItems.slice(1, 4),
-                questions_asked: questionsAsked,
-                items_remaining: possibleItems.length
-            };
-        }
-
-        return null;
+    async processAnswer(sessionId, answer) {
+        return this._apiCall(this.endpoints.PROCESS_ANSWER, 'POST', {
+            session_id: sessionId,
+            answer: answer
+        });
     }
 
-    /**
-     * Clear cache
-     */
-    clearCache() {
-        this.cache.clear();
-        console.log('🗑️ Cache cleared');
+    async getPrediction(sessionId) {
+        const prediction = await this._apiCall(this.endpoints.PREDICT, 'POST', {
+            session_id: sessionId
+        });
+        this.sessionId = null; 
+        return prediction;
     }
-
-    /**
-     * Get cache statistics
-     */
-    getCacheStats() {
-        return {
-            size: this.cache.size,
-            keys: Array.from(this.cache.keys()),
-            backendHealthy: this.backendHealthy,
-            sessionId: this.sessionId,
-            dataLoaded: {
-                countries: this.dataCache.country?.length || 0,
-                cities: this.dataCache.city?.length || 0,
-                places: this.dataCache.place?.length || 0
-            }
-        };
+    
+    async submitFeedback(sessionId, actualAnswerName) {
+        return this._apiCall(this.endpoints.FEEDBACK, 'POST', {
+            session_id: sessionId,
+            actual_answer: actualAnswerName
+        });
     }
-
-    /**
-     * Retry backend connection
-     */
-    async retryBackendConnection() {
-        console.log('🔄 Retrying backend connection...');
-        return await this.checkBackendHealth();
-    }
-
-    /**
-     * End session
-     */
-    endSession() {
-        this.sessionId = null;
-    }
-
-    /**
-     * Get statistics
-     */
-    getStats() {
-        return {
-            cache: this.getCacheStats(),
-            algorithm: {
-                mode: 'ultra',
-                maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
-                minConfidence: CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS,
-                features: {
-                    decisionTree: CONFIG.FEATURES.USE_DECISION_TREE,
-                    smartPruning: CONFIG.FEATURES.USE_SMART_PRUNING,
-                    contextual: CONFIG.FEATURES.USE_CONTEXTUAL_QUESTIONS
-                }
-            }
-        };
+    
+    async getStats() {
+        return this._apiCall(this.endpoints.STATS);
     }
 }
 

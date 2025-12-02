@@ -1,4 +1,4 @@
-// game.js - Ultra Game Manager with Adaptive Stopping
+// game.js - Ultra Game Manager with Backend Integration
 
 class Game {
     constructor() {
@@ -8,15 +8,17 @@ class Game {
             questionNumber: 0,
             maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
             askedQuestions: [],
-            possibleItems: [],
+            possibleItems: [], 
             answers: [],
             questions: null,
             usingBackend: false,
-            sessionId: null
+            sessionId: null, 
+            maxConfidence: 0
         };
         
         this.dataLoaded = false;
-        this.questionBank = {};
+        this.questionBank = {}; 
+        this.thinkingDuration = CONFIG.GAME.THINKING_DURATION;
     }
 
     async initialize() {
@@ -26,10 +28,20 @@ class Game {
                 loadingScreen.classList.remove('hidden');
             }
 
-            await apiHandler.loadAllData();
-            await this.loadQuestionBanks();
+            const data = await apiHandler.loadAllData();
+            this.questionBank = data.questions;
             
             this.dataLoaded = true;
+            this.state.usingBackend = apiHandler.backendHealthy;
+            
+            if (!this.state.usingBackend) {
+                 document.getElementById('backendStatus').textContent = "❌ Backend Offline. Ultra Mode Disabled.";
+                 document.getElementById('backendStatus').style.color = CONFIG.COLORS.ERROR;
+                 console.error("Backend API required for Ultra Mode is unavailable. Game will likely fail.");
+            } else {
+                 document.getElementById('backendStatus').textContent = "✅ Ultra Mode Ready (Backend Active)";
+                 document.getElementById('backendStatus').style.color = CONFIG.COLORS.SUCCESS;
+            }
             
             if (loadingScreen) {
                 setTimeout(() => {
@@ -38,264 +50,15 @@ class Game {
             }
 
             console.log('✅ Game initialized - Ultra Accuracy Mode');
-            console.log('📊 Question Limit:', CONFIG.GAME.MAX_QUESTIONS);
-            console.log('🎯 Min Confidence:', CONFIG.GAME.MIN_CONFIDENCE_TO_GUESS + '%');
             
         } catch (error) {
             console.error('Failed to initialize game:', error);
-            alert('Failed to load game data. Please refresh the page.');
+            alert(`GeoAI Ultra Mode requires a running backend. Error: ${error.message}. Switching to Welcome Screen.`);
+            this.showWelcomeScreen();
         }
     }
 
-    async loadQuestionBanks() {
-        this.questionBank = {
-            country: [
-                // CONTINENT (Stage 0) - MUST ASK FIRST
-                { question: "Is it in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
-                { question: "Is it in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
-                { question: "Is it in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
-                { question: "Is it in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
-                { question: "Is it in South America?", attribute: "continent", value: "southamerica", weight: 1.0 },
-                { question: "Is it in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
-                
-                // REGION (Stage 1) - HIGH PRIORITY
-                { question: "Is it in South Asia?", attribute: "region", value: "south", weight: 0.95 },
-                { question: "Is it in East Asia?", attribute: "region", value: "east", weight: 0.95 },
-                { question: "Is it in Western Europe?", attribute: "region", value: "west", weight: 0.95 },
-                { question: "Is it in Eastern Europe?", attribute: "region", value: "east", weight: 0.95 },
-                { question: "Is it in the Middle East?", attribute: "region", value: "middle", weight: 0.95 },
-                { question: "Is it in Central region?", attribute: "region", value: "central", weight: 0.9 },
-                { question: "Is it in Northern region?", attribute: "region", value: "north", weight: 0.9 },
-                { question: "Is it in Southern region?", attribute: "region", value: "south", weight: 0.9 },
-                { question: "Is it in the Caribbean?", attribute: "region", value: "caribbean", weight: 0.95 },
-                { question: "Is it in the Pacific?", attribute: "region", value: "pacific", weight: 0.95 },
-                
-                // SUB-REGION (Stage 1) - MORE SPECIFIC
-                { question: "Is it in Bengal region?", attribute: "subRegion", value: "bengal", weight: 0.95 },
-                { question: "Is it in the Indian subcontinent?", attribute: "subRegion", value: "indian subcontinent", weight: 0.9 },
-                { question: "Is it in Southeast Asia?", attribute: "subRegion", value: "southeast asia", weight: 0.9 },
-                { question: "Is it in the Balkans?", attribute: "subRegion", value: "balkans", weight: 0.9 },
-                { question: "Is it in Scandinavia?", attribute: "subRegion", value: "scandinavia", weight: 0.9 },
-                { question: "Is it in the British Isles?", attribute: "subRegion", value: "british isles", weight: 0.95 },
-                { question: "Is it in the Iberian Peninsula?", attribute: "subRegion", value: "iberian peninsula", weight: 0.95 },
-                { question: "Is it in Latin America?", attribute: "subRegion", value: "latin america", weight: 0.85 },
-                { question: "Is it in Central America?", attribute: "subRegion", value: "central america", weight: 0.9 },
-                { question: "Is it in the Caucasus?", attribute: "subRegion", value: "caucasus", weight: 0.95 },
-                { question: "Is it in the Horn of Africa?", attribute: "subRegion", value: "horn of africa", weight: 0.95 },
-                { question: "Is it in North Africa?", attribute: "subRegion", value: "north africa", weight: 0.9 },
-                { question: "Is it in West Africa?", attribute: "subRegion", value: "west africa", weight: 0.9 },
-                { question: "Is it in East Africa?", attribute: "subRegion", value: "east africa", weight: 0.9 },
-                { question: "Is it in Southern Africa?", attribute: "subRegion", value: "southern africa", weight: 0.9 },
-                { question: "Is it in Central Asia?", attribute: "subRegion", value: "central asia", weight: 0.9 },
-                
-                // GEOGRAPHIC FEATURES (Stage 2)
-                { question: "Does it have a coastline?", attribute: "hasCoast", value: true, weight: 0.75 },
-                { question: "Is it landlocked (no coast)?", attribute: "landlocked", value: true, weight: 0.85 },
-                { question: "Is it an island nation?", attribute: "isIsland", value: true, weight: 0.9 },
-                { question: "Does it have major mountains?", attribute: "hasMountains", value: true, weight: 0.7 },
-                
-                // POPULATION (Stage 3)
-                { question: "Does it have a very large population (over 200M)?", attribute: "population", value: "verylarge", weight: 0.9 },
-                { question: "Does it have a large population (50-200M)?", attribute: "population", value: "large", weight: 0.8 },
-                { question: "Does it have a medium population (10-50M)?", attribute: "population", value: "medium", weight: 0.7 },
-                { question: "Does it have a small population (under 10M)?", attribute: "population", value: "small", weight: 0.75 },
-                
-                // CLIMATE (Stage 2)
-                { question: "Does it have a tropical climate?", attribute: "climate", value: "tropical", weight: 0.75 },
-                { question: "Does it have a desert climate?", attribute: "climate", value: "desert", weight: 0.85 },
-                { question: "Does it have a temperate climate?", attribute: "climate", value: "temperate", weight: 0.7 },
-                { question: "Does it have a cold/freezing climate?", attribute: "climate", value: "cold", weight: 0.8 },
-                { question: "Does it have a very cold climate?", attribute: "climate", value: "freezing", weight: 0.85 },
-                { question: "Does it have a Mediterranean climate?", attribute: "climate", value: "mediterranean", weight: 0.8 },
-                { question: "Does it have a varied/diverse climate?", attribute: "climate", value: "varied", weight: 0.6 },
-                
-                // GOVERNMENT (Stage 4)
-                { question: "Is it a republic?", attribute: "government", value: "republic", weight: 0.7 },
-                { question: "Is it a monarchy?", attribute: "government", value: "monarchy", weight: 0.85 },
-                { question: "Is it a dictatorship?", attribute: "government", value: "dictatorship", weight: 0.9 },
-                { question: "Is it a theocracy?", attribute: "government", value: "theocracy", weight: 0.95 },
-                
-                // RELIGION (Stage 4)
-                { question: "Is Islam the main religion?", attribute: "mainReligion", value: "islam", weight: 0.8 },
-                { question: "Is Christianity the main religion?", attribute: "mainReligion", value: "christianity", weight: 0.75 },
-                { question: "Is Hinduism the main religion?", attribute: "mainReligion", value: "hinduism", weight: 0.9 },
-                { question: "Is Buddhism the main religion?", attribute: "mainReligion", value: "buddhism", weight: 0.85 },
-                { question: "Is Judaism the main religion?", attribute: "mainReligion", value: "jewish", weight: 0.95 },
-                { question: "Is it a secular country?", attribute: "mainReligion", value: "secular", weight: 0.8 },
-                { question: "Is it mixed/diverse religions?", attribute: "mainReligion", value: "mixed", weight: 0.75 },
-                { question: "Is Shinto the main religion?", attribute: "mainReligion", value: "shinto", weight: 0.98 },
-                
-                // LANGUAGE (Stage 5) - VERY SPECIFIC
-                { question: "Is Bengali the primary language?", attribute: "language", value: "bengali", weight: 0.98 },
-                { question: "Is English the primary language?", attribute: "language", value: "english", weight: 0.75 },
-                { question: "Is Arabic the primary language?", attribute: "language", value: "arabic", weight: 0.8 },
-                { question: "Is Chinese/Mandarin the primary language?", attribute: "language", value: "chinese", weight: 0.9 },
-                { question: "Is Spanish the primary language?", attribute: "language", value: "spanish", weight: 0.8 },
-                { question: "Is French the primary language?", attribute: "language", value: "french", weight: 0.85 },
-                { question: "Is Portuguese the primary language?", attribute: "language", value: "portuguese", weight: 0.9 },
-                { question: "Is Russian the primary language?", attribute: "language", value: "russian", weight: 0.9 },
-                { question: "Is Japanese the primary language?", attribute: "language", value: "japanese", weight: 0.98 },
-                { question: "Is Hindi the primary language?", attribute: "language", value: "hindi", weight: 0.95 },
-                { question: "Is German the primary language?", attribute: "language", value: "german", weight: 0.9 },
-                { question: "Is Italian the primary language?", attribute: "language", value: "italian", weight: 0.95 },
-                { question: "Is Dutch the primary language?", attribute: "language", value: "dutch", weight: 0.95 },
-                { question: "Is Turkish the primary language?", attribute: "language", value: "turkish", weight: 0.95 },
-                { question: "Is Korean the primary language?", attribute: "language", value: "korean", weight: 0.98 },
-                { question: "Is Persian the primary language?", attribute: "language", value: "persian", weight: 0.95 },
-                { question: "Is Greek the primary language?", attribute: "language", value: "greek", weight: 0.95 },
-                { question: "Is Hebrew the primary language?", attribute: "language", value: "hebrew", weight: 0.98 },
-                { question: "Is Urdu the primary language?", attribute: "language", value: "urdu", weight: 0.95 },
-                { question: "Is Vietnamese the primary language?", attribute: "language", value: "vietnamese", weight: 0.98 },
-                { question: "Is Thai the primary language?", attribute: "language", value: "thai", weight: 0.98 },
-                { question: "Is Malay the primary language?", attribute: "language", value: "malay", weight: 0.95 },
-                { question: "Is Indonesian the primary language?", attribute: "language", value: "indonesian", weight: 0.98 },
-                { question: "Is Polish the primary language?", attribute: "language", value: "polish", weight: 0.95 },
-                { question: "Is Romanian the primary language?", attribute: "language", value: "romanian", weight: 0.95 },
-                { question: "Is Ukrainian the primary language?", attribute: "language", value: "ukrainian", weight: 0.95 },
-                { question: "Is Swedish the primary language?", attribute: "language", value: "swedish", weight: 0.95 },
-                { question: "Is Norwegian the primary language?", attribute: "language", value: "norwegian", weight: 0.95 },
-                { question: "Is Danish the primary language?", attribute: "language", value: "danish", weight: 0.95 },
-                { question: "Is Finnish the primary language?", attribute: "language", value: "finnish", weight: 0.98 },
-                { question: "Is Czech the primary language?", attribute: "language", value: "czech", weight: 0.95 },
-                { question: "Is Hungarian the primary language?", attribute: "language", value: "hungarian", weight: 0.95 },
-                { question: "Is Swahili the primary language?", attribute: "language", value: "swahili", weight: 0.9 },
-                
-                // FAMOUS FOR (Stage 5) - ARRAY MATCHING
-                { question: "Is it famous for cricket?", attribute: "famousFor", value: "cricket", weight: 0.95 },
-                { question: "Is it famous for football/soccer?", attribute: "famousFor", value: "football", weight: 0.85 },
-                { question: "Is it famous for technology?", attribute: "famousFor", value: "technology", weight: 0.85 },
-                { question: "Is it famous for Bollywood?", attribute: "famousFor", value: "bollywood", weight: 0.98 },
-                { question: "Is it famous for anime?", attribute: "famousFor", value: "anime", weight: 0.98 },
-                { question: "Is it famous for K-pop/Korean pop culture?", attribute: "famousFor", value: "kpop", weight: 0.98 },
-                { question: "Is it famous for oil/petroleum?", attribute: "famousFor", value: "oil", weight: 0.9 },
-                { question: "Is it famous for wine?", attribute: "famousFor", value: "wine", weight: 0.9 },
-                { question: "Is it famous for coffee?", attribute: "famousFor", value: "coffee", weight: 0.9 },
-                { question: "Is it famous for pyramids?", attribute: "famousFor", value: "pyramids", weight: 0.98 },
-                { question: "Is it famous for the Great Wall?", attribute: "famousFor", value: "great wall", weight: 0.98 },
-                { question: "Is it famous for the Eiffel Tower?", attribute: "famousFor", value: "eiffel tower", weight: 0.98 },
-                { question: "Is it famous for kangaroos/unique wildlife?", attribute: "famousFor", value: "kangaroos", weight: 0.98 },
-                { question: "Is it famous for safari?", attribute: "famousFor", value: "safari", weight: 0.9 },
-                { question: "Is it famous for sushi?", attribute: "famousFor", value: "sushi", weight: 0.98 },
-                { question: "Is it famous for pasta/pizza?", attribute: "famousFor", value: "pasta", weight: 0.95 },
-                { question: "Is it famous for tacos/Mexican food?", attribute: "famousFor", value: "tacos", weight: 0.98 },
-                { question: "Is it famous for Amazon rainforest?", attribute: "famousFor", value: "amazon", weight: 0.98 },
-                { question: "Is it famous for Machu Picchu?", attribute: "famousFor", value: "machu picchu", weight: 0.98 },
-                { question: "Is it famous for chocolate?", attribute: "famousFor", value: "chocolate", weight: 0.9 },
-                { question: "Is it famous for beer?", attribute: "famousFor", value: "beer", weight: 0.85 },
-                { question: "Is it famous for vodka?", attribute: "famousFor", value: "vodka", weight: 0.95 },
-                { question: "Is it famous for maple syrup?", attribute: "famousFor", value: "maple syrup", weight: 0.98 },
-                { question: "Is it famous for fjords?", attribute: "famousFor", value: "fjords", weight: 0.95 },
-                { question: "Is it famous for Vikings?", attribute: "famousFor", value: "vikings", weight: 0.9 },
-                { question: "Is it famous for tango?", attribute: "famousFor", value: "tango", weight: 0.98 },
-                { question: "Is it famous for cigars?", attribute: "famousFor", value: "cigars", weight: 0.95 },
-                { question: "Is it famous for diamonds?", attribute: "famousFor", value: "diamonds", weight: 0.9 },
-                { question: "Is it famous for gold?", attribute: "famousFor", value: "gold", weight: 0.85 },
-                { question: "Is it famous for tea?", attribute: "famousFor", value: "tea", weight: 0.9 },
-                { question: "Is it famous for spices?", attribute: "famousFor", value: "spices", weight: 0.9 },
-                { question: "Is it famous for tulips?", attribute: "famousFor", value: "tulips", weight: 0.98 },
-                { question: "Is it famous for watches?", attribute: "famousFor", value: "watches", weight: 0.98 },
-                { question: "Is it famous for LEGO?", attribute: "famousFor", value: "lego", weight: 0.98 },
-                { question: "Is it famous for IKEA?", attribute: "famousFor", value: "ikea", weight: 0.98 },
-                { question: "Is it famous for reggae music?", attribute: "famousFor", value: "reggae", weight: 0.98 },
-                { question: "Is it famous for Hollywood?", attribute: "famousFor", value: "hollywood", weight: 0.98 },
-                { question: "Is it famous for fashion?", attribute: "famousFor", value: "fashion", weight: 0.9 },
-                { question: "Is it famous for tequila?", attribute: "famousFor", value: "tequila", weight: 0.98 },
-                { question: "Is it famous for rugby?", attribute: "famousFor", value: "rugby", weight: 0.9 },
-                { question: "Is it famous for opera?", attribute: "famousFor", value: "opera", weight: 0.9 },
-                { question: "Is it famous for ballet?", attribute: "famousFor", value: "ballet", weight: 0.95 },
-                { question: "Is it famous for carnival?", attribute: "famousFor", value: "carnival", weight: 0.98 },
-                { question: "Is it famous for curry?", attribute: "famousFor", value: "curry", weight: 0.95 },
-                { question: "Is it famous for rice?", attribute: "famousFor", value: "rice", weight: 0.8 },
-                { question: "Is it famous for Nelson Mandela?", attribute: "famousFor", value: "nelson mandela", weight: 0.98 },
-                { question: "Is it famous for pandas?", attribute: "famousFor", value: "pandas", weight: 0.98 },
-                { question: "Is it famous for the Taj Mahal?", attribute: "famousFor", value: "taj mahal", weight: 0.98 },
-                { question: "Is it famous for samurai?", attribute: "famousFor", value: "samurai", weight: 0.98 },
-                { question: "Is it famous for pharaohs?", attribute: "famousFor", value: "pharaohs", weight: 0.98 },
-                { question: "Is it famous for the Colosseum?", attribute: "famousFor", value: "colosseum", weight: 0.98 },
-                
-                // DRIVE SIDE (Stage 4)
-                { question: "Do they drive on the left side of the road?", attribute: "driveSide", value: "left", weight: 0.75 },
-                
-                // FLAG COLORS (Stage 4) - Less reliable but useful
-                { question: "Does the flag have red color?", attribute: "flagColors", value: "red", weight: 0.6 },
-                { question: "Does the flag have green color?", attribute: "flagColors", value: "green", weight: 0.65 },
-                { question: "Does the flag have blue color?", attribute: "flagColors", value: "blue", weight: 0.6 },
-                { question: "Does the flag have white color?", attribute: "flagColors", value: "white", weight: 0.55 },
-                { question: "Does the flag have yellow/gold color?", attribute: "flagColors", value: "yellow", weight: 0.65 },
-                { question: "Does the flag have black color?", attribute: "flagColors", value: "black", weight: 0.7 },
-                { question: "Does the flag have orange color?", attribute: "flagColors", value: "orange", weight: 0.75 },
-                { question: "Does the flag have saffron color?", attribute: "flagColors", value: "saffron", weight: 0.8 },
-                
-                // NEIGHBORS (Stage 5) - VERY SPECIFIC
-                { question: "Does it border India?", attribute: "neighbors", value: "india", weight: 0.9 },
-                { question: "Does it border China?", attribute: "neighbors", value: "china", weight: 0.85 },
-                { question: "Does it border Russia?", attribute: "neighbors", value: "russia", weight: 0.85 },
-                { question: "Does it border Germany?", attribute: "neighbors", value: "germany", weight: 0.85 },
-                { question: "Does it border France?", attribute: "neighbors", value: "france", weight: 0.85 },
-                { question: "Does it border Brazil?", attribute: "neighbors", value: "brazil", weight: 0.85 },
-                { question: "Does it border the USA?", attribute: "neighbors", value: "usa", weight: 0.9 },
-                { question: "Does it border Pakistan?", attribute: "neighbors", value: "pakistan", weight: 0.9 },
-                { question: "Does it border Myanmar?", attribute: "neighbors", value: "myanmar", weight: 0.9 },
-                { question: "Does it border Afghanistan?", attribute: "neighbors", value: "afghanistan", weight: 0.9 },
-                { question: "Does it border Iran?", attribute: "neighbors", value: "iran", weight: 0.85 },
-                { question: "Does it border Turkey?", attribute: "neighbors", value: "turkey", weight: 0.85 },
-                { question: "Does it border Poland?", attribute: "neighbors", value: "poland", weight: 0.85 },
-                { question: "Does it border Ukraine?", attribute: "neighbors", value: "ukraine", weight: 0.85 },
-                { question: "Does it border Spain?", attribute: "neighbors", value: "spain", weight: 0.9 },
-                { question: "Does it border Italy?", attribute: "neighbors", value: "italy", weight: 0.85 },
-                { question: "Does it border Mexico?", attribute: "neighbors", value: "mexico", weight: 0.9 },
-                { question: "Does it border Canada?", attribute: "neighbors", value: "canada", weight: 0.95 },
-                { question: "Does it border Saudi Arabia?", attribute: "neighbors", value: "saudi arabia", weight: 0.85 },
-                { question: "Does it border Egypt?", attribute: "neighbors", value: "egypt", weight: 0.85 },
-                { question: "Does it border South Africa?", attribute: "neighbors", value: "south africa", weight: 0.85 },
-                { question: "Does it border Argentina?", attribute: "neighbors", value: "argentina", weight: 0.85 },
-                { question: "Does it border Australia? (Note: most don't)", attribute: "neighbors", value: "australia", weight: 0.95 },
-                
-                // EXPORTS (Stage 4)
-                { question: "Does it export oil/petroleum?", attribute: "exports", value: "oil", weight: 0.85 },
-                { question: "Does it export electronics?", attribute: "exports", value: "electronics", weight: 0.8 },
-                { question: "Does it export cars/vehicles?", attribute: "exports", value: "cars", weight: 0.85 },
-                { question: "Does it export textiles/clothing?", attribute: "exports", value: "textiles", weight: 0.75 },
-                { question: "Does it export coffee?", attribute: "exports", value: "coffee", weight: 0.9 },
-                { question: "Does it export gold?", attribute: "exports", value: "gold", weight: 0.85 },
-                { question: "Does it export diamonds?", attribute: "exports", value: "diamonds", weight: 0.9 },
-                { question: "Does it export natural gas?", attribute: "exports", value: "gas", weight: 0.85 },
-                { question: "Does it export machinery?", attribute: "exports", value: "machinery", weight: 0.75 },
-                { question: "Does it export aircraft?", attribute: "exports", value: "aircraft", weight: 0.9 },
-                { question: "Does it export pharmaceuticals/medicine?", attribute: "exports", value: "pharmaceuticals", weight: 0.85 },
-                { question: "Does it export wine?", attribute: "exports", value: "wine", weight: 0.9 },
-                { question: "Does it export fish/seafood?", attribute: "exports", value: "fish", weight: 0.8 },
-                { question: "Does it export coal?", attribute: "exports", value: "coal", weight: 0.85 },
-                { question: "Does it export copper?", attribute: "exports", value: "copper", weight: 0.85 },
-                { question: "Does it export software/IT services?", attribute: "exports", value: "software", weight: 0.9 },
-                { question: "Does it export agricultural products?", attribute: "exports", value: "agriculture", weight: 0.7 },
-                { question: "Does it export bananas?", attribute: "exports", value: "bananas", weight: 0.9 },
-                { question: "Does it export soybeans?", attribute: "exports", value: "soybeans", weight: 0.85 },
-                { question: "Does it export iron ore?", attribute: "exports", value: "iron ore", weight: 0.85 }
-            ],
-            
-            city: [
-                { question: "Is it a capital city?", attribute: "isCapital", value: true, weight: 0.85 },
-                { question: "Is it in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
-                { question: "Is it in Europe?", attribute: "continent", value: "europe", weight: 1.0 },
-                { question: "Is it in Africa?", attribute: "continent", value: "africa", weight: 1.0 },
-                { question: "Is it in North America?", attribute: "continent", value: "northamerica", weight: 1.0 },
-                { question: "Is it in Oceania?", attribute: "continent", value: "oceania", weight: 1.0 },
-                { question: "Does a major river run through it?", attribute: "hasRiver", value: true, weight: 0.7 },
-                { question: "Does it have a metro/subway?", attribute: "hasMetro", value: true, weight: 0.65 },
-                { question: "Is it a very large city (10M+)?", attribute: "size", value: "verylarge", weight: 0.85 }
-            ],
-            
-            place: [
-                { question: "Is it a monument?", attribute: "type", value: "monument", weight: 0.8 },
-                { question: "Is it a temple?", attribute: "type", value: "temple", weight: 0.85 },
-                { question: "Is it ancient ruins?", attribute: "type", value: "ruins", weight: 0.85 },
-                { question: "Is it in Asia?", attribute: "continent", value: "asia", weight: 1.0 },
-                { question: "Is it in Europe?", attribute: "continent", value: "europe", weight: 1.0 }
-            ]
-        };
-    }
-
+    // --- UI Management ---
     showWelcomeScreen() {
         this.hideAllScreens();
         document.getElementById('welcomeScreen').classList.add('active');
@@ -304,30 +67,9 @@ class Game {
     showCategoryScreen() {
         this.hideAllScreens();
         document.getElementById('categoryScreen').classList.add('active');
-    }
-
-    showThinkingScreen(category) {
-        this.hideAllScreens();
-        const categoryNames = {
-            'country': 'country',
-            'city': 'city',
-            'place': 'historic place'
-        };
-        document.getElementById('thinkingCategory').textContent = categoryNames[category];
-        document.getElementById('thinkingScreen').classList.add('active');
-    }
-
-    showQuestionScreen() {
-        this.hideAllScreens();
-        document.getElementById('questionScreen').classList.add('active');
-    }
-
-    showResultScreen() {
-        this.hideAllScreens();
-        document.getElementById('resultScreen').classList.add('active');
-        if (CONFIG.UI.ENABLE_ANIMATIONS) {
-            animationController.createConfetti();
-        }
+        document.getElementById('categoryCountCountry').textContent = `${apiHandler.getData('country').length}+ Items`;
+        document.getElementById('categoryCountCity').textContent = `${apiHandler.getData('city').length}+ Items`;
+        document.getElementById('categoryCountPlace').textContent = `${apiHandler.getData('place').length}+ Items`;
     }
 
     showEngineScreen() {
@@ -339,83 +81,162 @@ class Game {
         this.showWelcomeScreen();
     }
 
+    showThinkingScreen(category) {
+        this.hideAllScreens();
+        const categoryNames = {
+            'country': 'country',
+            'city': 'city',
+            'place': 'historic place'
+        };
+        document.getElementById('thinkingCategory').textContent = categoryNames[category];
+        document.getElementById('thinkingScreen').classList.add('active');
+        
+        const progressBarFill = document.querySelector('.thinking-progress-fill');
+        if (progressBarFill) {
+            progressBarFill.style.animation = 'none';
+            progressBarFill.offsetHeight; 
+            progressBarFill.style.animation = `thinkingProgress ${this.thinkingDuration}ms ease-in-out forwards`;
+        }
+    }
+
+    showQuestionScreen() {
+        this.hideAllScreens();
+        document.getElementById('questionScreen').classList.add('active');
+        document.getElementById('questionText').textContent = 'Thinking...';
+    }
+    
+    showGuessScreen() {
+        this.hideAllScreens();
+        document.getElementById('guessScreen').classList.add('active');
+    }
+
+    showResultScreen() {
+        this.hideAllScreens();
+        document.getElementById('resultScreen').classList.add('active');
+        if (CONFIG.UI.ENABLE_ANIMATIONS) {
+            animationController.createConfetti();
+        }
+    }
+    
+    showFeedbackModal(guessName) {
+        document.getElementById('guessResultName').textContent = guessName;
+        document.getElementById('feedbackModal').classList.add('visible');
+        this.loadActualAnswers(this.state.category);
+    }
+    
+    closeFeedbackModal() {
+        document.getElementById('feedbackModal').classList.remove('visible');
+    }
+
     hideAllScreens() {
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
         });
     }
 
+    // --- Game Flow ---
+    
     async startGame(category) {
-        if (!this.dataLoaded) {
-            alert('Game data is still loading. Please wait...');
+        if (!this.dataLoaded || !this.state.usingBackend) {
+            alert('Backend not ready or data loading failed. Please check console.');
             return;
         }
-
-        // Reset algorithm
-        localAlgorithm.reset();
 
         this.state.category = category;
         this.state.questionNumber = 0;
-        this.state.askedQuestions = [];
-        this.state.answers = [];
+        this.state.maxConfidence = 0;
         this.state.questions = this.questionBank[category] || [];
-        this.state.usingBackend = false;
-        this.state.sessionId = null;
-        
-        const items = apiHandler.getData(category);
-        if (items.length === 0) {
-            alert('No data available for this category.');
-            return;
-        }
+        this.state.possibleItems = apiHandler.getData(category);
 
-        this.state.possibleItems = items.map(item => ({
-            ...item,
-            probability: 1.0
-        }));
-        
-        console.log(`🎮 Starting new game: ${category}`);
-        console.log(`📊 Total items: ${this.state.possibleItems.length}`);
-        console.log(`❓ Total questions available: ${this.state.questions.length}`);
+        if (this.state.questions.length === 0 || this.state.possibleItems.length === 0) {
+             alert('No questions or data available for this category.');
+             return;
+        }
         
         this.showThinkingScreen(category);
         
-        setTimeout(() => {
-            this.showQuestionScreen();
-            this.askNextQuestion();
-        }, CONFIG.GAME.THINKING_DURATION);
+        try {
+            const startData = await apiHandler.startGame(category, this.state.questions);
+            this.state.sessionId = startData.session_id;
+
+            setTimeout(() => {
+                this.showQuestionScreen();
+                this.askNextQuestion();
+            }, this.thinkingDuration);
+
+        } catch(e) {
+            console.error("Game start failed:", e);
+            alert(`Failed to start game session: ${e.message}. Please check backend logs.`);
+            this.showCategoryScreen();
+        }
     }
 
     async askNextQuestion() {
-        // Check stopping condition
-        if (localAlgorithm.shouldStopAsking(
-            this.state.possibleItems,
-            this.state.questionNumber,
-            this.state.maxQuestions
-        )) {
-            this.showResult();
-            return;
+        if (!this.state.sessionId) return;
+        
+        document.getElementById('questionText').style.opacity = '0.5';
+        document.getElementById('typingIndicator').classList.add('active');
+        
+        try {
+            const data = await apiHandler.getNextQuestion(this.state.sessionId);
+            
+            document.getElementById('typingIndicator').classList.remove('active');
+            document.getElementById('questionText').style.opacity = '1';
+            
+            this.updateConfidenceUI(data.confidence, data.questions_asked);
+            
+            if (data.ready_to_guess) {
+                this.showGuessScreen();
+                this.makePrediction();
+                return;
+            }
+
+            this.state.currentQuestion = data.question;
+            this.state.questionNumber = data.questions_asked;
+
+            this.updateQuestionUI(data.question);
+
+        } catch(e) {
+            console.error("Error fetching question:", e);
+            document.getElementById('questionText').textContent = "An error occurred while fetching the next question.";
+            this.updateConfidenceUI(0, this.state.questionNumber);
         }
-
-        // Get next question using advanced algorithm
-        const question = localAlgorithm.selectBestQuestion(
-            this.state.category,
-            this.state.askedQuestions,
-            this.state.possibleItems
-        );
-
-        if (!question) {
-            console.log('No more questions available, showing result');
-            this.showResult();
-            return;
-        }
-
-        this.state.currentQuestion = question;
-        this.state.questionNumber++;
-        this.state.askedQuestions.push(question.question);
-
-        this.updateQuestionUI(question);
     }
 
+    async answerQuestion(answer) {
+        if (!this.state.sessionId || !this.state.currentQuestion) return;
+
+        this.state.answers.push({
+            question: this.state.currentQuestion.question,
+            answer: answer
+        });
+        
+        document.getElementById('questionText').style.opacity = '0.5';
+        
+        try {
+            const data = await apiHandler.processAnswer(this.state.sessionId, answer);
+
+            document.getElementById('questionText').style.opacity = '1';
+            
+            this.updateConfidenceUI(data.confidence, this.state.questionNumber);
+            
+            if (data.should_stop) {
+                this.showGuessScreen();
+                setTimeout(() => this.makePrediction(), CONFIG.GAME.QUESTION_DELAY * 2);
+                return;
+            }
+
+            setTimeout(() => {
+                this.askNextQuestion();
+            }, CONFIG.GAME.QUESTION_DELAY);
+
+        } catch(e) {
+            console.error("Error processing answer:", e);
+            document.getElementById('questionText').textContent = "Error processing answer. Please try again.";
+        }
+    }
+
+    // --- UI Update Logic ---
     updateQuestionUI(question) {
         const questionText = document.getElementById('questionText');
         questionText.style.opacity = '0';
@@ -424,74 +245,123 @@ class Game {
             questionText.textContent = question.question;
             questionText.style.opacity = '1';
         }, 150);
-
-        const progress = Math.min((this.state.questionNumber / this.state.maxQuestions) * 100, 100);
+    }
+    
+    updateConfidenceUI(confidence, questionsAsked) {
+        this.state.maxConfidence = Math.max(this.state.maxConfidence, confidence);
+        
+        const progress = Math.min((questionsAsked / this.state.maxQuestions) * 100, 100);
         document.getElementById('progressFill').style.width = progress + '%';
         document.getElementById('progressText').textContent = 
-            `Question ${this.state.questionNumber} / ${this.state.maxQuestions}`;
+            `Question ${questionsAsked} / ${this.state.maxQuestions}`;
 
-        const confidence = localAlgorithm.calculateConfidence(this.state.possibleItems);
-        document.getElementById('confidenceValue').textContent = confidence + '%';
-        
-        const confidenceBar = document.getElementById('confidenceBar');
-        if (confidenceBar) {
-            confidenceBar.style.width = confidence + '%';
-        }
+        document.getElementById('confidenceValue').textContent = `${confidence}%`;
+        document.getElementById('confidenceBar').style.width = confidence + '%';
     }
 
-    async answerQuestion(answer) {
-        this.state.answers.push({
-            question: this.state.currentQuestion.question,
-            answer: answer
+    // --- Prediction & Feedback ---
+    
+    async makePrediction() {
+        if (!this.state.sessionId) return;
+        
+        document.getElementById('guessStatus').textContent = "Thinking... Finalizing Prediction...";
+        document.getElementById('guessSpinner').classList.remove('hidden');
+        document.getElementById('guessButtons').classList.add('hidden');
+        
+        try {
+            const result = await apiHandler.getPrediction(this.state.sessionId);
+            
+            document.getElementById('guessName').textContent = result.prediction.name;
+            document.getElementById('guessConfidence').textContent = `${result.confidence}%`;
+            document.getElementById('guessInfo').textContent = result.prediction.info;
+            document.getElementById('questionsCount').textContent = result.questions_asked;
+            
+            this.hideAllScreens();
+            document.getElementById('guessScreen').classList.add('active');
+            
+            document.getElementById('guessYesBtn').onclick = () => this.handleGuess(true, result);
+            document.getElementById('guessNoBtn').onclick = () => this.handleGuess(false, result);
+            
+            document.getElementById('guessStatus').textContent = `Is it ${result.prediction.name}?`;
+            document.getElementById('guessSpinner').classList.add('hidden');
+            document.getElementById('guessButtons').classList.remove('hidden');
+            
+        } catch(e) {
+            console.error("Prediction failed:", e);
+            alert(`Failed to make final prediction: ${e.message}`);
+            this.showCategoryScreen();
+        }
+    }
+    
+    async handleGuess(isCorrect, result) {
+        const targetElement = document.getElementById('guessScreen');
+        animationController.fadeOut(targetElement, 300);
+        
+        if (isCorrect) {
+            this.state.sessionId = null; 
+            this.showFinalResult(result);
+        } else {
+            this.showFeedbackModal(result.prediction.name);
+        }
+    }
+    
+    loadActualAnswers(category) {
+        const items = apiHandler.getData(category);
+        const listContainer = document.getElementById('actualAnswerList');
+        listContainer.innerHTML = ''; 
+        
+        const names = items.map(i => i.name).sort(); 
+        
+        names.slice(0, 50).forEach(name => { 
+            const button = document.createElement('button');
+            button.className = 'btn btn-secondary btn-feedback-choice';
+            button.textContent = name;
+            button.onclick = () => this.submitCorrection(name);
+            listContainer.appendChild(button);
         });
-
-        const questionText = document.getElementById('questionText');
-        if (questionText) {
-            questionText.style.opacity = '0.5';
-        }
-
-        // Filter items using advanced algorithm
-        this.state.possibleItems = localAlgorithm.filterItems(
-            this.state.possibleItems,
-            this.state.currentQuestion,
-            answer
-        );
-
-        if (questionText) {
-            questionText.style.opacity = '1';
-        }
-
-        if (CONFIG.DEBUG.ENABLED) {
-            console.log('📊 Items remaining:', this.state.possibleItems.length);
-            if (this.state.possibleItems.length <= 10) {
-                console.log('Top items:', this.state.possibleItems.map(i => i.name));
-            }
-        }
-
-        setTimeout(() => {
-            this.askNextQuestion();
-        }, CONFIG.GAME.QUESTION_DELAY);
     }
-
-    async showResult() {
-        let prediction = localAlgorithm.getBestGuess(this.state.possibleItems);
-        let confidence = localAlgorithm.calculateConfidence(this.state.possibleItems);
+    
+    async submitCorrection(actualAnswerName) {
+        this.closeFeedbackModal();
+        this.showThinkingScreen(this.state.category);
         
-        if (!prediction) {
-            const items = apiHandler.getData(this.state.category);
-            if (items.length > 0) {
-                prediction = items[0];
-                confidence = 50;
-            } else {
-                alert('Unable to make a guess. Please try again.');
-                this.showCategoryScreen();
-                return;
+        try {
+            if (!actualAnswerName) { 
+                 this.showQuestionScreen();
+                 return;
             }
+            
+            const sessionToSubmit = this.state.sessionId; // Preserve session ID for this call
+            
+            // Call submitFeedback with the active session ID
+            const data = await apiHandler.submitFeedback(sessionToSubmit, actualAnswerName); 
+            
+            // Session ID is not nullified on this call, only on reset or successful predict
+            
+            this.state.questionNumber = data.questions_asked; 
+            
+            if (data.questions_asked >= this.state.maxQuestions) {
+                alert("Max questions reached. Forcing a final guess after learning.");
+                this.makePrediction();
+            } else {
+                this.thinkingDuration = 1000;
+                setTimeout(() => {
+                    this.showQuestionScreen();
+                    this.askNextQuestion();
+                }, 1000);
+            }
+        } catch (e) {
+             console.error("Correction submission failed:", e);
+             alert(`Error processing correction: ${e.message}. Please start a new game.`);
+             this.resetGame();
         }
-
-        console.log(`🎯 Final prediction: ${prediction.name}`);
-        console.log(`📊 Confidence: ${confidence}%`);
-        console.log(`❓ Questions asked: ${this.state.questionNumber}`);
+    }
+    
+    // --- Final Display ---
+    
+    showFinalResult(result) {
+        const prediction = result.prediction;
+        const confidence = result.confidence;
 
         document.getElementById('resultEmoji').textContent = prediction.emoji || '🎯';
         document.getElementById('resultName').textContent = prediction.name;
@@ -500,8 +370,10 @@ class Game {
             <p class="info-text">${prediction.info || 'No additional information available.'}</p>
         `;
         document.getElementById('finalConfidence').textContent = confidence;
-        document.getElementById('questionsAsked').textContent = this.state.questionNumber;
-        document.getElementById('possibleMatches').textContent = this.state.possibleItems.length;
+        document.getElementById('questionsAsked').textContent = result.questions_asked;
+        document.getElementById('possibleMatches').textContent = result.remaining_items;
+        document.getElementById('maxConfidenceReached').textContent = this.state.maxConfidence;
+
 
         this.animateConfidenceCircle(confidence);
         this.showResultScreen();
@@ -531,18 +403,10 @@ class Game {
     }
 
     resetGame() {
-        localAlgorithm.reset();
+        this.state.sessionId = null; 
         this.state = {
-            category: null,
-            currentQuestion: null,
-            questionNumber: 0,
-            maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
-            askedQuestions: [],
-            possibleItems: [],
-            answers: [],
-            questions: null,
-            usingBackend: false,
-            sessionId: null
+            category: null, currentQuestion: null, questionNumber: 0, maxQuestions: CONFIG.GAME.MAX_QUESTIONS,
+            askedQuestions: [], possibleItems: [], answers: [], questions: null, usingBackend: false, sessionId: null, maxConfidence: 0
         };
         this.showWelcomeScreen();
     }
