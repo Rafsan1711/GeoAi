@@ -1,116 +1,127 @@
 """
 Probability Manager - Pure Python Implementation
+Implements Soft Elimination and Bayesian Update Likelihood
 """
 
 import math
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import logging
+
+from models.item_model import Item
 
 logger = logging.getLogger(__name__)
 
 
 class ProbabilityManager:
-    """Manage probabilities using pure Python"""
+    """Manages item probabilities during a game session."""
     
-    def __init__(self):
-        self.answer_confidence = {
-            'yes': 0.95, 'probably': 0.75, 'dontknow': 0.50,
-            'probablynot': 0.75, 'no': 0.95
-        }
-        
-        self.likelihood_params = {
-            'yes': {'match': 2.5, 'mismatch': 0.05},
-            'probably': {'match': 1.5, 'mismatch': 0.3},
-            'dontknow': {'match': 1.0, 'mismatch': 1.0},
-            'probablynot': {'match': 0.3, 'mismatch': 1.5},
-            'no': {'match': 0.05, 'mismatch': 2.5}
-        }
+    # CRITICAL: Ultra Answer Weights
+    # Multiplier is applied to the prior probability.
+    # New Prob = Prior * Likelihood Multiplier
+    LIKELIHOOD_MULTIPLIERS = {
+        'yes': {'match': 5.0, 'mismatch': 0.005},      # Highly decisive
+        'probably': {'match': 2.5, 'mismatch': 0.2},
+        'dontknow': {'match': 1.0, 'mismatch': 1.0},   # No change
+        'probablynot': {'match': 0.2, 'mismatch': 2.5},
+        'no': {'match': 0.005, 'mismatch': 5.0}        # Highly decisive
+    }
     
-    def update_item_probability(self, item, question: Dict, answer: str) -> float:
-        """Update item probability"""
-        prior = item.probability
+    MIN_PROBABILITY: float = 1e-6  # Never let probability go below this (Soft Elimination)
+    MIN_PROBABILITY_HARD: float = 1e-10 # For initial mass setting
+
+    def update_item_probability(self, item: Item, question: Dict, answer: str) -> float:
+        """
+        Update item probability using the Bayesian likelihood method.
         
-        attribute = question['attribute']
-        target_value = question['value']
-        item_value = item.attributes.get(attribute)
+        Args:
+            item: The item model instance.
+            question: The question asked.
+            answer: The user's answer.
+            
+        Returns:
+            float: The new un-normalized probability for the item.
+        """
+        # 1. Determine Match
+        matches = item.matches_question(question)
         
-        if isinstance(item_value, list):
-            matches = target_value in item_value
-        else:
-            matches = item_value == target_value
-        
-        params = self.likelihood_params.get(answer, self.likelihood_params['dontknow'])
+        # 2. Get Likelihood Multiplier
+        params = self.LIKELIHOOD_MULTIPLIERS.get(answer, self.LIKELIHOOD_MULTIPLIERS['dontknow'])
         likelihood = params['match'] if matches else params['mismatch']
         
-        confidence = self.answer_confidence.get(answer, 0.5)
-        if confidence < 1.0:
-            likelihood = 1.0 + (likelihood - 1.0) * confidence
+        # 3. Bayesian Update: P_posterior = P_prior * L
+        prior = item.probability
+        posterior = prior * likelihood
         
-        return prior * likelihood
-    
-    def normalize_probabilities(self, items: List) -> List:
-        """Normalize probabilities"""
+        # 4. Soft Elimination
+        # Ensure the probability never goes to true zero, allowing for recovery from wrong branches.
+        posterior = max(posterior, self.MIN_PROBABILITY)
+        
+        # 5. Store evidence (for analytics/debugging)
+        item.evidence.append((question['question'], answer, likelihood))
+        item.match_history.append((question['question'], matches))
+        
+        return posterior
+
+    def normalize_probabilities(self, items: List[Item]) -> List[Item]:
+        """
+        Normalize the probabilities of all active items so they sum to 1.0.
+        Also resets probability mass if all were eliminated or sum is near zero.
+        """
         active_items = [i for i in items if not i.eliminated]
         
         if not active_items:
-            return items
+            # Should not happen in Soft Elimination, but as a safety measure, reactivate all.
+            logger.warning("No active items remain, reactivating all items.")
+            active_items = items
+            for item in items:
+                item.eliminated = False
         
         total_prob = sum(item.probability for item in active_items)
         
-        if total_prob == 0:
-            uniform_prob = 1.0 / len(active_items)
+        if total_prob < self.MIN_PROBABILITY_HARD:
+            # Probability mass has almost vanished, likely due to cascading 'no's.
+            # Reset all active items to a uniform distribution (recovery mechanism).
+            logger.warning(f"Probability mass near zero ({total_prob:.2e}). Performing mass reset.")
+            uniform_prob = 1.0 / len(active_items) if active_items else 0.0
             for item in active_items:
                 item.probability = uniform_prob
-        else:
+            total_prob = 1.0
+            
+        if total_prob > 0:
             for item in active_items:
-                item.probability = item.probability / total_prob
+                item.probability /= total_prob
         
         return items
     
-    def soft_filter(self, items: List, threshold: float = 0.01) -> List:
-        """Soft filter items"""
-        for item in items:
-            if item.probability < threshold:
+    def soft_filter(self, items: List[Item], top_k: int = 10) -> List[Item]:
+        """
+        Soft filtering by probabilty threshold. 
+        Ensures a minimum of `top_k` items remain active, even if their probability is low.
+        """
+        
+        active_items = [i for i in items if not i.eliminated]
+        
+        if len(active_items) <= top_k:
+            return items
+
+        # Sort all items by current probability
+        sorted_items = sorted(items, key=lambda x: x.probability, reverse=True)
+        
+        # Calculate threshold as 1% of the 10th item's probability
+        if len(sorted_items) > 10:
+             threshold_prob = sorted_items[min(top_k - 1, len(sorted_items) - 1)].probability * 0.01 
+        else:
+             threshold_prob = self.MIN_PROBABILITY * 10 
+        
+        # Mark items below the threshold as eliminated
+        for item in sorted_items:
+            if item.probability < threshold_prob:
                 item.eliminated = True
-        
-        active_items = [i for i in items if not i.eliminated]
-        if len(active_items) < 3:
-            sorted_items = sorted(items, key=lambda x: x.probability, reverse=True)
-            for i in range(min(3, len(sorted_items))):
-                sorted_items[i].eliminated = False
-        
+            else:
+                item.eliminated = False # Re-activate if probability has risen
+                
+        # Ensure at least the top item is never eliminated
+        if sorted_items:
+            sorted_items[0].eliminated = False
+
         return items
-    
-    def calculate_entropy(self, items: List) -> float:
-        """Calculate entropy"""
-        active_items = [i for i in items if not i.eliminated]
-        
-        if not active_items:
-            return 0.0
-        
-        probs = [i.probability for i in active_items]
-        total = sum(probs)
-        
-        if total == 0:
-            return 0.0
-        
-        probs = [p / total for p in probs]
-        entropy = -sum(p * math.log2(p + 1e-10) for p in probs if p > 0)
-        
-        return entropy
-    
-    def estimate_questions_remaining(self, items: List, target_confidence: float = 0.9) -> int:
-        """Estimate remaining questions"""
-        active_items = [i for i in items if not i.eliminated]
-        
-        if not active_items:
-            return 0
-        
-        current_entropy = self.calculate_entropy(active_items)
-        
-        if current_entropy == 0:
-            return 0
-        
-        # Simple estimation
-        questions_needed = max(0, int(math.ceil(current_entropy / 0.3)))
-        return min(questions_needed, 10)
