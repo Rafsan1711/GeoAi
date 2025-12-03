@@ -1,10 +1,10 @@
 """
 Bayesian Network - Pure Python Implementation
-Simulates a simple belief network for question scoring, replacing complex dependencies.
+No external dependencies
 """
 
 import math
-from typing import List, Dict, Tuple, Set, Optional # <--- FIX: Added Optional
+from typing import List, Dict, Tuple, Set
 from collections import defaultdict
 import logging
 
@@ -12,139 +12,197 @@ logger = logging.getLogger(__name__)
 
 
 class BayesianNetwork:
-    """Bayesian Network to track and propagate beliefs across attributes."""
+    """Bayesian Network using pure Python"""
     
     def __init__(self):
-        # Stores P(Attribute=Value | E_prior)
-        self.attribute_beliefs = defaultdict(lambda: defaultdict(float))
-        # Stores dependencies for propagation (simple map)
-        self.attribute_groups = {
-            'continent': ['region', 'subRegion', 'hasCoast', 'isIsland'],
-            'region': ['continent', 'subRegion', 'landlocked'],
-            'population': ['size'],
-            'mainReligion': ['language'],
-            'climate': ['avgTemperature', 'hasMountains'],
-        }
-        self.evidence_log: List[Tuple[str, str, str]] = [] # List of (attribute, value, answer)
-
+        self.beliefs = defaultdict(lambda: defaultdict(float))
+        self.evidence = {}
+        self.dependencies = defaultdict(set)
+    
     def build_network(self, items: List, questions: List[Dict]):
-        """
-        Initializes beliefs based on the dataset distribution.
-        """
-        self.attribute_beliefs.clear()
-        self.evidence_log.clear()
-        
+        """Build network structure"""
         all_attributes = set(q['attribute'] for q in questions)
+        self._learn_dependencies_simple(items, all_attributes)
         
         for attr in all_attributes:
-            value_counts = defaultdict(int)
-            total_count = 0
-            
-            for item in items:
-                values = item.attributes.get(attr)
-                
-                if values is None:
-                    continue
-                    
-                if isinstance(values, list):
-                    for v in values:
-                        value_counts[str(v)] += 1
-                else:
-                    value_counts[str(values)] += 1
-                total_count += 1
-            
-            if total_count > 0:
-                for value, count in value_counts.items():
-                    # Initial belief is P(Attribute=Value)
-                    self.attribute_beliefs[attr][value] = count / total_count
+            values = self._get_attribute_values(items, attr)
+            if values:
+                uniform_prob = 1.0 / len(values)
+                for value in values:
+                    self.beliefs[attr][value] = uniform_prob
         
-        logger.info(f"Bayesian Network initialized with {len(all_attributes)} attributes.")
-
-    def update_beliefs(self, question: Dict, answer: str, item_list: List):
-        """
-        Update beliefs based on a direct question and propagate the effect.
-        """
+        logger.info(f"Network built with {len(all_attributes)} attributes")
+    
+    def update_beliefs(self, question: Dict, answer: str):
+        """Update beliefs based on answer"""
         attribute = question['attribute']
-        value = str(question['value'])
-        self.evidence_log.append((attribute, value, answer))
-
-        # 1. Direct Belief Update: Use the distribution of the remaining items
-        active_items = [i for i in item_list if not i.eliminated]
-        if not active_items:
-            return
-
-        total_prob = sum(i.probability for i in active_items)
-        if total_prob < 1e-10:
-            return
-
-        match_prob_sum = 0.0
-        for item in active_items:
-            # Use item's inherent match function
-            dummy_q = {'attribute': attribute, 'value': question['value']}
-            if item.matches_question(dummy_q):
-                match_prob_sum += item.probability
+        value = question['value']
+        self.evidence[attribute] = (value, answer)
+        self._update_attribute_belief(attribute, value, answer)
+        self._propagate_beliefs(attribute)
+    
+    def score_question(self, question: Dict, answer_history: List[Tuple]) -> float:
+        """Score question based on beliefs"""
+        attribute = question['attribute']
+        value = question['value']
         
-        # New belief is the sum of probabilities of matching items
-        new_belief = match_prob_sum / total_prob if total_prob > 0 else 0.0
-
-        # Update the belief in the specific attribute/value (simplified approach)
-        if value in self.attribute_beliefs[attribute]:
-            current_belief = self.attribute_beliefs[attribute][value]
-            # Interpolate old belief and new observed belief
-            updated_belief = (current_belief * 0.5) + (new_belief * 0.5)
-            self.attribute_beliefs[attribute][value] = updated_belief
+        current_belief = self.beliefs[attribute].get(value, 0.5)
+        dependency_score = self._calculate_dependency_score(attribute, answer_history)
         
-        # 2. Propagation: Spread this change to related attributes
-        self._propagate_beliefs_simple(attribute, new_belief, answer)
-
-    def _propagate_beliefs_simple(self, source_attr: str, new_belief: float, answer: str):
-        """
-        Propagates belief changes to dependent attributes using a simple heuristic factor.
-        """
-        dependents = set()
-        for attr, group in self.attribute_groups.items():
-            if source_attr in group:
-                dependents.add(attr)
-            elif attr == source_attr:
-                dependents.update(group)
+        return 0.6 * current_belief + 0.4 * dependency_score
+    
+    def _learn_dependencies_simple(self, items: List, attributes: Set[str]):
+        """Learn attribute dependencies"""
+        attr_list = list(attributes)
         
-        prop_factor = 0.10 if answer in ['yes', 'no'] else 0.02 # Stronger prop for decisive answers
-
+        for i, attr1 in enumerate(attr_list):
+            for attr2 in attr_list[i+1:]:
+                contingency = self._build_contingency_table(items, attr1, attr2)
+                if contingency:
+                    chi2 = self._chi_square_simple(contingency)
+                    if chi2 > 3.84:
+                        self.dependencies[attr1].add(attr2)
+                        self.dependencies[attr2].add(attr1)
+    
+    def _chi_square_simple(self, observed: List[List[float]]) -> float:
+        """Chi-square test using pure Python"""
+        if not observed or not observed[0]:
+            return 0.0
+        
+        rows = len(observed)
+        cols = len(observed[0])
+        
+        row_totals = [sum(observed[i]) for i in range(rows)]
+        col_totals = [sum(observed[i][j] for i in range(rows)) for j in range(cols)]
+        total = sum(row_totals)
+        
+        if total == 0:
+            return 0.0
+        
+        chi2 = 0.0
+        for i in range(rows):
+            for j in range(cols):
+                expected = (row_totals[i] * col_totals[j]) / total
+                if expected > 0:
+                    chi2 += (observed[i][j] - expected) ** 2 / expected
+        
+        return chi2
+    
+    def _build_contingency_table(self, items: List, attr1: str, attr2: str) -> List[List[int]]:
+        """Build contingency table"""
+        values1 = sorted(set(
+            item.attributes.get(attr1) for item in items 
+            if item.attributes.get(attr1) is not None 
+            and not isinstance(item.attributes.get(attr1), list)
+        ))
+        
+        values2 = sorted(set(
+            item.attributes.get(attr2) for item in items 
+            if item.attributes.get(attr2) is not None 
+            and not isinstance(item.attributes.get(attr2), list)
+        ))
+        
+        if not values1 or not values2:
+            return []
+        
+        table = [[0 for _ in range(len(values2))] for _ in range(len(values1))]
+        
+        for item in items:
+            val1 = item.attributes.get(attr1)
+            val2 = item.attributes.get(attr2)
+            
+            if val1 in values1 and val2 in values2:
+                i = values1.index(val1)
+                j = values2.index(val2)
+                table[i][j] += 1
+        
+        return table
+    
+    def _update_attribute_belief(self, attribute: str, value, answer: str):
+        """Update belief for attribute"""
+        confidence_map = {
+            'yes': 1.0, 'probably': 0.75, 'dontknow': 0.5,
+            'probablynot': 0.25, 'no': 0.0
+        }
+        
+        confidence = confidence_map.get(answer, 0.5)
+        
+        if value in self.beliefs[attribute]:
+            self.beliefs[attribute][value] *= (1.0 + confidence)
+        
+        total = sum(self.beliefs[attribute].values())
+        if total > 0:
+            for v in self.beliefs[attribute]:
+                self.beliefs[attribute][v] /= total
+    
+    def _propagate_beliefs(self, source_attribute: str):
+        """Propagate beliefs to dependent attributes"""
+        dependents = self.dependencies.get(source_attribute, set())
+        
         for dep_attr in dependents:
-            if dep_attr in self.attribute_beliefs:
-                for value in self.attribute_beliefs[dep_attr]:
-                    current_belief = self.attribute_beliefs[dep_attr][value]
-                    
-                    if new_belief > 0.7:
-                         # Push dependent belief up
-                        self.attribute_beliefs[dep_attr][value] = min(1.0, current_belief * (1.0 + prop_factor)) 
-                    elif new_belief < 0.3:
-                        # Pull dependent belief down
-                        self.attribute_beliefs[dep_attr][value] = max(0.0, current_belief * (1.0 - prop_factor))
+            source_entropy = self._calculate_attribute_entropy(source_attribute)
+            
+            if source_entropy < 0.5:
+                for value in self.beliefs[dep_attr]:
+                    self.beliefs[dep_attr][value] *= (1.0 + (1.0 - source_entropy) * 0.1)
                 
-                # Re-normalize dependent beliefs
-                total = sum(self.attribute_beliefs[dep_attr].values())
-                if total > 1e-10:
-                    for value in self.attribute_beliefs[dep_attr]:
-                        self.attribute_beliefs[dep_attr][value] /= total
-
-    def score_question(self, question: Dict) -> float:
-        """
-        Score a question based on current beliefs.
-        """
-        attribute = question['attribute']
-        value = str(question['value'])
+                total = sum(self.beliefs[dep_attr].values())
+                if total > 0:
+                    for v in self.beliefs[dep_attr]:
+                        self.beliefs[dep_attr][v] /= total
+    
+    def _calculate_attribute_entropy(self, attribute: str) -> float:
+        """Calculate entropy"""
+        if attribute not in self.beliefs:
+            return 1.0
         
-        belief = self.attribute_beliefs.get(attribute, {}).get(value, 0.5)
+        probs = list(self.beliefs[attribute].values())
+        if not probs:
+            return 1.0
         
-        # Score rewards the confirmation of a strong belief (high confidence)
-        # 0.5 = low score (high uncertainty on attribute value)
-        # 1.0 = high score (low uncertainty on attribute value)
-        belief_score = 1.0 - abs(0.5 - belief) * 2 
+        total = sum(probs)
+        if total == 0:
+            return 1.0
         
-        return belief_score 
-
+        probs = [p / total for p in probs]
+        entropy = -sum(p * math.log2(p + 1e-10) for p in probs if p > 0)
+        
+        max_entropy = math.log2(len(probs)) if len(probs) > 1 else 1.0
+        return entropy / max_entropy if max_entropy > 0 else 0.0
+    
+    def _calculate_dependency_score(self, attribute: str, answer_history: List[Tuple]) -> float:
+        """Calculate dependency score"""
+        if not answer_history:
+            return 0.5
+        
+        dependents = self.dependencies.get(attribute, set())
+        score = 0.5
+        count = 0
+        
+        for prev_q, prev_a in answer_history:
+            if prev_q['attribute'] in dependents and prev_a in ['yes', 'no']:
+                score += 0.2
+                count += 1
+        
+        return score / (count + 1) if count > 0 else 0.5
+    
+    def _get_attribute_values(self, items: List, attribute: str) -> Set:
+        """Get all values for attribute"""
+        values = set()
+        for item in items:
+            value = item.attributes.get(attribute)
+            if value is not None:
+                if isinstance(value, list):
+                    values.update(value)
+                else:
+                    values.add(value)
+        return values
+    
+    def get_belief(self, attribute: str, value) -> float:
+        """Get belief value"""
+        return self.beliefs.get(attribute, {}).get(value, 0.5)
+    
     def reset(self):
         """Reset network"""
-        self.attribute_beliefs.clear()
-        self.evidence_log.clear()
+        self.beliefs.clear()
+        self.evidence.clear()

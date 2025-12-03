@@ -1,27 +1,11 @@
-// main.js - Ultra Application Entry Point
-
-/**
- * Global Configuration is expected to be loaded via config.js before this script.
- * We rely on the global 'CONFIG' variable.
- */
-
-// If CONFIG is not defined, we should ensure it is defined (for safety, assuming config.js loads first)
-// The error "Identifier 'CONFIG' has already been declared" means config.js re-declares it.
-// We remove the line 'const CONFIG = window.CONFIG;' which was a bad practice.
+// main.js - Application Entry Point
 
 /**
  * Initialize the application when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check for necessary CONFIG variable loaded from config.js
-    if (typeof CONFIG === 'undefined') {
-        console.error("CRITICAL ERROR: CONFIG object not found. Ensure config.js loads first.");
-        alert("Configuration Error. Please check console and ensure config.js is loaded.");
-        return;
-    }
-    
-    console.log('%c🌍 GeoAI Ultra - Maximum Accuracy Mode', 'font-size: 20px; font-weight: bold; color: #f59e0b');
-    console.log('%cVersion 3.0 Ultra | Backend Integrated', 'font-size: 12px; color: #94a3b8');
+    console.log('🌍 GeoAI - Mind Reading Geography Game');
+    console.log('Version 2.0 | Initializing...');
 
     // Initialize animations
     animationController.init();
@@ -35,13 +19,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Add keyboard shortcuts
     addKeyboardShortcuts();
 
+    // Add visibility change handler
+    addVisibilityHandler();
+
+    // Add window resize handler
+    addResizeHandler();
+
     // Log performance metrics
     logPerformanceMetrics();
 
     // Show console welcome message
     showConsoleWelcome();
 
-    console.log('✅ Ultra Mode Ready!');
+    console.log('✅ Application ready!');
 });
 
 /**
@@ -53,24 +43,23 @@ function addKeyboardShortcuts() {
         if (!currentScreen) return;
 
         // Question screen shortcuts
-        if (currentScreen.id === 'questionScreen' && game.state.currentQuestion) {
+        if (currentScreen.id === 'questionScreen') {
             switch(e.key) {
-                case '1': game.answerQuestion('yes'); break;
-                case '2': game.answerQuestion('probably'); break;
-                case '3': game.answerQuestion('dontknow'); break;
-                case '4': game.answerQuestion('probablynot'); break;
-                case '5': game.answerQuestion('no'); break;
-            }
-        }
-        
-        // Guess screen shortcuts
-        if (currentScreen.id === 'guessScreen' && document.getElementById('guessButtons').classList.contains('hidden') === false) {
-            if (e.key === 'y' || e.key === 'Y' || e.key === 'Enter') {
-                e.preventDefault();
-                document.getElementById('guessYesBtn').click();
-            } else if (e.key === 'n' || e.key === 'N') {
-                e.preventDefault();
-                document.getElementById('guessNoBtn').click();
+                case '1':
+                    game.answerQuestion('yes');
+                    break;
+                case '2':
+                    game.answerQuestion('probably');
+                    break;
+                case '3':
+                    game.answerQuestion('dontknow');
+                    break;
+                case '4':
+                    game.answerQuestion('probablynot');
+                    break;
+                case '5':
+                    game.answerQuestion('no');
+                    break;
             }
         }
 
@@ -86,20 +75,47 @@ function addKeyboardShortcuts() {
         if (e.key === 'Escape') {
             if (currentScreen.id === 'engineScreen') {
                 game.closeEngineScreen();
-            } else if (document.getElementById('feedbackModal').classList.contains('visible')) {
-                game.closeFeedbackModal();
-            } else if (currentScreen.id !== 'welcomeScreen' && currentScreen.id !== 'thinkingScreen') {
-                if (confirm('Are you sure you want to exit the current game? All progress will be lost.')) {
-                    game.resetGame();
+            } else if (currentScreen.id !== 'welcomeScreen') {
+                if (confirm('Are you sure you want to exit the current game?')) {
+                    game.showWelcomeScreen();
                 }
             }
         }
+    });
+}
 
-        // Debug mode toggle (Ctrl+D)
-        if (e.ctrlKey && e.key === 'd') {
-            e.preventDefault();
-            window.toggleDebug();
+/**
+ * Add visibility change handler
+ */
+function addVisibilityHandler() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (CONFIG.DEBUG.ENABLED) {
+                console.log('⏸️ App paused (tab hidden)');
+            }
+        } else {
+            if (CONFIG.DEBUG.ENABLED) {
+                console.log('▶️ App resumed (tab visible)');
+            }
         }
+    });
+}
+
+/**
+ * Add window resize handler
+ */
+function addResizeHandler() {
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (CONFIG.DEBUG.ENABLED) {
+                console.log('📐 Window resized:', {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                });
+            }
+        }, 250);
     });
 }
 
@@ -112,10 +128,10 @@ function logPerformanceMetrics() {
             setTimeout(() => {
                 const perfData = performance.getEntriesByType('navigation')[0];
                 if (perfData) {
-                    console.log('%c⚡ Performance Metrics', 'font-weight: bold; color: #3b82f6');
-                    console.table({
-                        'Load Time': Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
-                        'DOM Ready': Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms',
+                    console.log('⚡ Performance Metrics:', {
+                        loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart) + 'ms',
+                        domReady: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart) + 'ms',
+                        firstPaint: Math.round(performance.getEntriesByType('paint')[0]?.startTime || 0) + 'ms'
                     });
                 }
             }, 0);
@@ -128,89 +144,116 @@ function logPerformanceMetrics() {
  */
 function showConsoleWelcome() {
     console.log(`
-%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-%c🌍 GeoAI Ultra - Maximum Accuracy Mode
-%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-%c📊 ULTRA MODE FEATURES:
-• New Backend API (Render.com)
-• Real-time Learning via User Feedback
-• Adaptive Bayesian Algorithm
-• 50 Question Limit for Max Precision
-
-%c🎮 KEYBOARD SHORTCUTS:
-• 1-5: Answer questions
-• Y/N: Yes/No on Guess Screen
-• Ctrl+D: Toggle debug mode
-
-%c💻 DEVELOPER COMMANDS:
+%c🌍 GeoAI - Mind Reading Geography Game
+%cVersion 2.0 | Built with Advanced AI Algorithm
+%cCommands:
 • toggleDebug() - Toggle debug mode
-• getStats() - Get detailed statistics
-• game.resetGame() - Start a new game
-• game.state - View current game state
-
-%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• exportGameData() - Export current game data
+• clearCache() - Clear API cache
+• getStats() - Get game statistics
 `,
-'color: #6b7280',
-'font-size: 16px; font-weight: bold; color: #f59e0b',
-'color: #6b7280',
-'font-size: 12px; color: #10b981',
-'font-size: 12px; color: #3b82f6',
-'font-size: 11px; color: #8b5cf6',
-'color: #6b7280'
+'font-size: 20px; font-weight: bold; color: #6366f1',
+'font-size: 12px; color: #94a3b8',
+'font-size: 11px; color: #64748b'
     );
 }
 
-// --- Debug & Utility Functions (Exposed to Window) ---
+/**
+ * Utility: Export game data (for debugging)
+ */
+window.exportGameData = () => {
+    const data = {
+        category: game.state.category,
+        answers: game.state.answers,
+        questionNumber: game.state.questionNumber,
+        finalGuess: localAlgorithm.getBestGuess(game.state.possibleItems),
+        confidence: localAlgorithm.calculateConfidence(game.state.possibleItems),
+        possibleItems: game.state.possibleItems.length,
+        timestamp: new Date().toISOString()
+    };
+
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `geoai-game-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    console.log('📥 Game data exported');
+};
 
 /**
  * Utility: Toggle debug mode
  */
 window.toggleDebug = () => {
-    // Assuming CONFIG is loaded globally
-    if (typeof CONFIG === 'undefined') return; 
-    
     CONFIG.DEBUG.ENABLED = !CONFIG.DEBUG.ENABLED;
-    CONFIG.DEBUG.LOG_ALGORITHM = CONFIG.DEBUG.ENABLED;
-    CONFIG.DEBUG.LOG_QUESTIONS = CONFIG.DEBUG.ENABLED;
-    CONFIG.DEBUG.LOG_API_CALLS = CONFIG.DEBUG.ENABLED;
-    
-    console.log('%c🛠️ Debug mode: ' + (CONFIG.DEBUG.ENABLED ? 'ON' : 'OFF'), 
-        'font-weight: bold; color: ' + (CONFIG.DEBUG.ENABLED ? '#10b981' : '#ef4444'));
+    console.log('🛠️ Debug mode:', CONFIG.DEBUG.ENABLED ? 'ON' : 'OFF');
     
     if (CONFIG.DEBUG.ENABLED) {
-        window.game = game;
-        window.apiHandler = apiHandler;
-        window.CONFIG = CONFIG;
         console.log('Current game state:', game.state);
-    } else {
-        delete window.game;
-        delete window.apiHandler;
     }
 };
 
 /**
- * Utility: Get game statistics from backend
+ * Utility: Clear API cache
  */
-window.getStats = async () => {
-    // Assuming apiHandler is loaded globally
-    if (typeof apiHandler === 'undefined') return;
+window.clearCache = () => {
+    apiHandler.clearCache();
+    console.log('🗑️ API cache cleared');
+};
+
+/**
+ * Utility: Get game statistics
+ */
+window.getStats = () => {
+    const stats = {
+        gameState: {
+            category: game.state.category,
+            questionNumber: game.state.questionNumber,
+            possibleItems: game.state.possibleItems.length,
+            askedQuestions: game.state.askedQuestions.length
+        },
+        apiCache: apiHandler.getCacheStats(),
+        performance: {
+            memory: performance.memory ? {
+                used: Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB',
+                total: Math.round(performance.memory.totalJSHeapSize / 1048576) + 'MB'
+            } : 'N/A'
+        }
+    };
+    
+    console.table(stats.gameState);
+    console.log('📊 Full stats:', stats);
+    return stats;
+};
+
+/**
+ * Utility: Test API connection
+ */
+window.testAPI = async () => {
+    console.log('🔌 Testing API connection...');
     
     try {
-        const stats = await apiHandler.getStats();
-        
-        console.log('%c📊 ULTRA MODE STATISTICS (Backend)', 'font-size: 14px; font-weight: bold; color: #f59e0b');
-        console.table(stats.local_session_stats);
-        console.log('%cData Stats:', 'font-weight: bold; color: #3b82f6', stats.data_stats);
-        console.log('%cConfig:', 'font-weight: bold; color: #10b981', stats.config);
-        
-        return stats;
-    } catch (e) {
-        console.error("Failed to fetch stats from backend:", e);
-        return { error: e.message };
+        const response = await fetch(CONFIG.API.BASE_URL);
+        const data = await response.json();
+        console.log('✅ API connected:', data);
+        return data;
+    } catch (error) {
+        console.error('❌ API connection failed:', error);
+        return null;
     }
 };
 
+/**
+ * Utility: Reload game data
+ */
+window.reloadData = async () => {
+    console.log('🔄 Reloading game data...');
+    await apiHandler.loadAllData();
+    console.log('✅ Data reloaded');
+};
 
 /**
  * Handle beforeunload - warn user if game is in progress
@@ -218,14 +261,54 @@ window.getStats = async () => {
 window.addEventListener('beforeunload', (e) => {
     if (game.state.questionNumber > 0 && game.state.questionNumber < game.state.maxQuestions) {
         e.preventDefault();
-        e.returnValue = 'Are you sure you want to exit the current game? All progress will be lost.';
-        return e.returnValue;
+        e.returnValue = '';
+        return '';
     }
 });
 
-// Initial debug exposure
-if (typeof CONFIG !== 'undefined' && CONFIG.DEBUG.ENABLED) {
-    window.toggleDebug();
+/**
+ * Handle errors globally
+ */
+window.addEventListener('error', (e) => {
+    console.error('Global error:', e.error);
+    
+    if (CONFIG.DEBUG.ENABLED) {
+        console.error('Error details:', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno
+        });
+    }
+});
+
+/**
+ * Handle unhandled promise rejections
+ */
+window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled promise rejection:', e.reason);
+    
+    if (CONFIG.DEBUG.ENABLED) {
+        console.error('Promise rejection details:', e);
+    }
+});
+
+/**
+ * Service Worker registration (for PWA - optional)
+ */
+if ('serviceWorker' in navigator && CONFIG.FEATURES.ENABLE_PWA) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('✅ Service Worker registered:', reg.scope))
+            .catch(err => console.log('❌ Service Worker registration failed:', err));
+    });
 }
 
-console.log('%c✨ Please start a game by clicking "Start Ultra Mode"', 'color: #8b5cf6');
+// Expose instances for debugging
+if (CONFIG.DEBUG.ENABLED) {
+    window.game = game;
+    window.apiHandler = apiHandler;
+    window.localAlgorithm = localAlgorithm;
+    window.animationController = animationController;
+    window.CONFIG = CONFIG;
+}
