@@ -2,7 +2,7 @@
 Item Model - Represents a game item (country/city/place)
 """
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,18 +22,22 @@ class Item:
         self.info = info
         
         # Probability tracking
-        self.probability: float = 0.0  # Initial probability set by InferenceEngine
-        self.eliminated: bool = False  # Whether item is eliminated
+        self.probability = 1.0  # Initial probability
+        self.eliminated = False  # Whether item is eliminated
         
-        # Evidence tracking
-        # List of (question_text, answer, likelihood_applied)
-        self.evidence: List[Tuple[str, str, float]] = [] 
-        self.match_history: List[Tuple[str, bool]] = []
+        # History tracking
+        self.match_history = []  # List of (question, matched: bool)
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'Item':
         """
         Create Item from dictionary
+        
+        Args:
+            data: Dictionary with item data
+            
+        Returns:
+            Item: New Item object
         """
         item_id = data.get('id', 0)
         name = data.get('name', 'Unknown')
@@ -41,17 +45,17 @@ class Item:
         info = data.get('info', '')
         
         # Extract attributes (all keys except metadata)
-        metadata_keys = {'id', 'name', 'emoji', 'info', 'probability', 'eliminated', 'evidence'}
+        metadata_keys = {'id', 'name', 'emoji', 'info', 'probability', 'eliminated'}
         attributes = {k: v for k, v in data.items() if k not in metadata_keys}
         
-        item = cls(item_id, name, attributes, emoji, info)
-        item.probability = data.get('probability', 0.0) # Load existing prob if available
-        item.eliminated = data.get('eliminated', False)
-        return item
+        return cls(item_id, name, attributes, emoji, info)
     
     def to_dict(self) -> Dict:
         """
         Convert Item to dictionary
+        
+        Returns:
+            Dict: Item data
         """
         return {
             'id': self.id,
@@ -60,48 +64,94 @@ class Item:
             'info': self.info,
             'probability': self.probability,
             'eliminated': self.eliminated,
-            'evidence': self.evidence, # Export evidence for persistence
             **self.attributes  # Include all attributes
         }
     
     def matches_question(self, question: Dict) -> bool:
         """
-        Check if item matches a question (updated to be a static check)
+        Check if item matches a question
+        
+        Args:
+            question: Question dict with 'attribute' and 'value'
+            
+        Returns:
+            bool: True if matches
         """
         attribute = question['attribute']
         target_value = question['value']
         
         item_value = self.attributes.get(attribute)
         
-        if item_value is None:
-            return False
-            
-        # Handle list attributes (like flagColors, neighbors, famousFor)
+        # Handle list attributes (like flagColors)
         if isinstance(item_value, list):
-            # Fuzzy match for strings in array
-            if isinstance(target_value, str):
-                target_value_lower = target_value.lower().strip()
-                return any(str(v).lower().strip() == target_value_lower or target_value_lower in str(v).lower().strip() for v in item_value)
-            return target_value in item_value
+            matches = target_value in item_value
+        else:
+            matches = item_value == target_value
         
-        # Handle string attributes
-        if isinstance(item_value, str) and isinstance(target_value, str):
-            item_str = item_value.lower().strip()
-            target_str = target_value.lower().strip()
-            # Exact or contains match (for famousFor single-string checks)
-            return item_str == target_str or target_str in item_str
-
-        # Direct comparison for boolean/numeric
-        return item_value == target_value
-
+        # Record match history
+        self.match_history.append((question['question'], matches))
+        
+        return matches
+    
+    def get_attribute(self, attribute: str, default=None):
+        """
+        Get attribute value with default
+        
+        Args:
+            attribute: Attribute name
+            default: Default value if not found
+            
+        Returns:
+            Any: Attribute value
+        """
+        return self.attributes.get(attribute, default)
+    
+    def has_attribute(self, attribute: str) -> bool:
+        """
+        Check if item has an attribute defined
+        
+        Args:
+            attribute: Attribute name
+            
+        Returns:
+            bool: True if has attribute
+        """
+        return attribute in self.attributes and self.attributes[attribute] is not None
+    
+    def get_match_rate(self) -> float:
+        """
+        Get percentage of questions this item matched
+        
+        Returns:
+            float: Match rate (0-1)
+        """
+        if not self.match_history:
+            return 0.0
+        
+        matches = sum(1 for _, matched in self.match_history if matched)
+        return matches / len(self.match_history)
     
     def reset_probability(self):
         """Reset probability to initial state"""
-        self.probability = 0.0
+        self.probability = 1.0
         self.eliminated = False
-        self.evidence = []
         self.match_history = []
     
     def __repr__(self) -> str:
         """String representation"""
         return f"Item(id={self.id}, name='{self.name}', prob={self.probability:.4f})"
+    
+    def __str__(self) -> str:
+        """String representation"""
+        status = "eliminated" if self.eliminated else "active"
+        return f"{self.emoji} {self.name} ({status}, prob={self.probability:.2f})"
+    
+    def __eq__(self, other) -> bool:
+        """Equality comparison"""
+        if not isinstance(other, Item):
+            return False
+        return self.id == other.id and self.name == other.name
+    
+    def __hash__(self) -> int:
+        """Hash for use in sets/dicts"""
+        return hash((self.id, self.name))
