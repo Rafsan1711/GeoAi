@@ -1,0 +1,77 @@
+{
+    "country": [
+        { "question": "Is it located in Asia?", "attribute": "continent", "value": "asia", "weight": 1.0, "category": "country" },
+        { "question": "Is it located in Europe?", "attribute": "continent", "value": "europe", "weight": 1.0, "category": "country" },
+        { "question": "Is it located in Africa?", "attribute": "continent", "value": "africa", "weight": 1.0, "category": "country" },
+        { "question": "Is it located in North America?", "attribute": "continent", "value": "northamerica", "weight": 1.0, "category": "country" },
+        { "question": "Is it located in South America?", "attribute": "continent", "value": "southamerica", "weight": 1.0, "category": "country" },
+        { "question": "Is it located in Oceania?", "attribute": "continent", "value": "oceania", "weight": 1.0, "category": "country" },
+        
+        { "question": "Does this country have a coastline?", "attribute": "hasCoast", "value": true, "weight": 0.75, "category": "country" },
+        { "question": "Is it landlocked (no coast)?", "attribute": "landlocked", "value": true, "weight": 0.85, "category": "country" },
+        { "question": "Is it an island nation?", "attribute": "isIsland", "value": true, "weight": 0.9, "category": "country" },
+        { "question": "Does it have major mountains?", "attribute": "hasMountains", "value": true, "weight": 0.7, "category": "country" },
+        
+        { "question": "Does it have a very large population (over 200M)?", "attribute": "population", "value": "verylarge", "weight": 0.9, "category": "country" },
+        { "question": "Does it have a large population (50-200M)?", "attribute": "population", "value": "large", "weight": 0.8, "category": "country" },
+        { "question": "Does it have a medium population (10-50M)?", "attribute": "population", "value": "medium", "weight": 0.7, "category": "country" },
+        { "question": "Does it have a small population (under 10M)?", "attribute": "population", "value": "small", "weight": 0.75, "category": "country" },
+        
+        { "question": "Does it have a tropical climate?", "attribute": "climate", "value": "tropical", "weight": 0.75, "category": "country" },
+        { "question": "Does it have a desert climate?", "attribute": "climate", "value": "desert", "weight": 0.85, "category": "country" },
+        { "question": "Does it have a temperate climate?", "attribute": "climate", "value": "temperate", "weight": 0.7, "category": "country" },
+        { "question": "Does it have a cold/freezing climate?", "attribute": "climate", "value": "cold", "weight": 0.8, "category": "country" },
+        { "question": "Does it have a Mediterranean climate?", "attribute": "climate", "value": "mediterranean", "weight": 0.8, "category": "country" },
+        
+        { "question": "Is Islam the main religion?", "attribute": "mainReligion", "value": "islam", "weight": 0.8, "category": "country" },
+        { "question": "Is Christianity the main religion?", "attribute": "mainReligion", "value": "christianity", "weight": 0.75, "category": "country" },
+        { "question": "Is Hinduism the main religion?", "attribute": "mainReligion", "value": "hinduism", "weight": 0.9, "category": "country" },
+        { "question": "Is Buddhism the main religion?", "attribute": "mainReligion", "value": "buddhism", "weight": 0.85, "category": "country" },
+        { "question": "Is it a secular country?", "attribute": "mainReligion", "value": "secular", "weight": 0.8, "category": "country" },
+
+        { "question": "Is English the primary language?", "attribute": "language", "value": "english", "weight": 0.75, "category": "country" },
+        { "question": "Is Spanish the primary language?", "attribute": "language", "value": "spanish", "weight": 0.8, "category": "country" },
+        { "question": "Is French the primary language?", "attribute": "language", "value": "french", "weight": 0.95, "category": "country" },
+        { "question": "Is Arabic the primary language?", "attribute": "language", "value": "arabic", "weight": 0.8, "category": "country" },
+        { "question": "Is Chinese/Mandarin the primary language?", "attribute": "language", "value": "chinese", "weight": 0.9, "category": "country" },
+        { "question": "Is Portuguese the primary language?", "attribute": "language", "value": "portuguese", "weight": 0.9, "category": "country" },
+        { "question": "Is Japanese the primary language?", "attribute": "language", "value": "japanese", "weight": 0.98, "category": "country" },
+        
+        { "question": "Is it famous for cricket?", "attribute": "famousFor", "value": "cricket", "weight": 0.95, "category": "country" },
+        { "question": "Is it famous for football/soccer?", "attribute": "famousFor", "value": "football", "weight": 0.85, "category": "country" },
+        { "question": "Is it famous for technology?", "attribute": "famousFor", "value": "technology", "weight": 0.85, "category": "country" },
+        { "question": "Is it famous for Bollywood?", "attribute": "famousFor", "value": "bollywood", "weight": 0.98, "category": "country" },
+        { "question": "Is it famous for the Eiffel Tower?", "attribute": "famousFor", "value": "eiffel tower", "weight": 0.99, "category": "country" },
+        { "question": "Is it famous for oil/petroleum?", "attribute": "famousFor", "value": "oil", "weight": 0.9, "category": "country" },
+        { "question": "Is it famous for pyramids?", "attribute": "famousFor", "value": "pyramids", "weight": 0.98, "category": "country" },
+        { "question": "Is it famous for wine?", "attribute": "famousFor", "value": "wine", "weight": 0.95, "category": "country" },
+        
+        { "question": "Do they drive on the left side of the road?", "attribute": "driveSide", "value": "left", "weight": 0.75, "category": "country" },
+        
+        { "question": "Does it border China?", "attribute": "neighbors", "value": "china", "weight": 0.85, "category": "country" },
+        { "question": "Does it border the USA?", "attribute": "neighbors", "value": "usa", "weight": 0.9, "category": "country" },
+        { "question": "Does it border Germany?", "attribute": "neighbors", "value": "germany", "weight": 0.9, "category": "country" },
+        { "question": "Does it export cars/vehicles?", "attribute": "exports", "value": "cars", "weight": 0.9, "category": "country" },
+        { "question": "Does it export coffee?", "attribute": "exports", "value": "coffee", "weight": 0.9, "category": "country" },
+        
+        { "question": "Is it a Monarchy (King/Queen)?", "attribute": "government", "value": "monarchy", "weight": 0.85, "category": "country" }
+    ],
+    "city": [
+        { "question": "Is it a capital city?", "attribute": "isCapital", "value": true, "weight": 0.85, "category": "city" },
+        { "question": "Is it located in Asia?", "attribute": "continent", "value": "asia", "weight": 1.0, "category": "city" },
+        { "question": "Is it located in Europe?", "attribute": "continent", "value": "europe", "weight": 1.0, "category": "city" },
+        { "question": "Is it located in Africa?", "attribute": "continent", "value": "africa", "weight": 1.0, "category": "city" },
+        { "question": "Does a major river run through it?", "attribute": "hasRiver", "value": true, "weight": 0.7, "category": "city" },
+        { "question": "Does it have a metro/subway?", "attribute": "hasMetro", "value": true, "weight": 0.65, "category": "city" },
+        { "question": "Is it a very large city (10M+)?", "attribute": "size", "value": "verylarge", "weight": 0.85, "category": "city" }
+    ],
+    "place": [
+        { "question": "Is it a monument or memorial?", "attribute": "type", "value": "monument", "weight": 0.8, "category": "place" },
+        { "question": "Is it a temple or religious structure?", "attribute": "type", "value": "temple", "weight": 0.85, "category": "place" },
+        { "question": "Is it located in Asia?", "attribute": "continent", "value": "asia", "weight": 1.0, "category": "place" },
+        { "question": "Is it located in Europe?", "attribute": "continent", "value": "europe", "weight": 1.0, "category": "place" },
+        { "question": "Is it from ancient times (over 2000 years old)?", "attribute": "age", "value": "ancient", "weight": 0.85, "category": "place" },
+        { "question": "Is it a completely natural place (not man-made)?", "attribute": "isNatural", "value": true, "weight": 0.85, "category": "place" },
+        { "question": "Is it famous as a symbol of love?", "attribute": "famousFor", "value": "love", "weight": 0.98, "category": "place" }
+    ]
+}
